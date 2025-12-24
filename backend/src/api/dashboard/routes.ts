@@ -1,19 +1,26 @@
 import { Router } from "express";
-import { getDashboardCategory, getDashboardFilter, getDashboardSummary } from "./controller.js";
+import {
+    getDashboardCategoryTotals,
+    getDashboardTransactions,
+    getDashboardTransactionTotals
+} from "./controller.js";
 
 export const dashboardRouter = Router();
 
 /**
- * GET /dashboard/transaction/summary
+ * GET /dashboard/transaction/totals
+ * must provide statementId as param
  */
-dashboardRouter.get("/transaction/summary", getDashboardSummary);
+dashboardRouter.get("/transaction/totals", getDashboardTransactionTotals);
 
 /**
- * GET /dashboard/transaction/summary
+ * GET /dashboard/transaction/category
+ * must provide statementId as param
  */
-dashboardRouter.get("/transaction/category", getDashboardCategory);
+dashboardRouter.get("/transaction/category", getDashboardCategoryTotals);
 
 /**
- * GET /dashboard/transaction/summary
+ * GET /dashboard/transaction
+ * must provide statementId as param
  */
-dashboardRouter.get("/transaction/filter", getDashboardFilter);
+dashboardRouter.get("/transaction", getDashboardTransactions);

@@ -1,5 +1,9 @@
 import { Router } from "express";
-import { getDashboardCategory, getDashboardFilter, getDashboardSummary } from "./controller.js";
+import {
+    getDashboardCategory,
+    getDashboardFilter,
+    getDashboardSummary 
+} from "./controller.js";
 
 export const dashboardRouter = Router();
 

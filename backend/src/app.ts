@@ -12,11 +12,6 @@ app.use((req, _res, next) => {
     next();
 });
 
-app.use((req, _res, next) => {
-    console.log("INCOMING:", req.method, req.originalUrl);
-    next();
-})
-
 // Mount Routers
 app.use("/dashboard", dashboardRouter);
 

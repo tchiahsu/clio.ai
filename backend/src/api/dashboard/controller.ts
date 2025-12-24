@@ -55,7 +55,7 @@ export async function getDashboardTransactionTotals(req: Request, res: Response)
         const data = await sqlDashboardSummaryForStatement(pool, userId, statementId);
         res.json({ statementId, data })
     } catch (err) {
-        console.error("getDashboardSummary error:", err);
+        console.error("Error getting transaction totals:", err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 }
@@ -76,7 +76,7 @@ export async function getDashboardCategoryTotals(req: Request, res: Response) {
         const data = await sqlDashboardCategorySpendForStatement(pool, userId, statementId);
         res.json({ statementId, data })
     } catch (err) {
-        console.error("getDashboardCategory error:", err);
+        console.error("Error getting totals for all categories:", err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 }
@@ -98,7 +98,7 @@ export async function getDashboardTransactions(req: Request, res: Response) {
         const data = await sqlDashboardTransactionsForStatement(pool, userId, statementId);
         res.json({ statementId, data })
     } catch (err) {
-        console.error("getDashboardFilter error:", err);
+        console.error("Error getting all transactions with dates:", err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 }

@@ -10,7 +10,7 @@ export const dashboardRouter = Router();
 /**
  * GET /dashboard/transaction/summary
  */
-dashboardRouter.get("/transaction/summary", getDashboardSummary);
+dashboardRouter.get("/transaction/totals", getDashboardSummary);
 
 /**
  * GET /dashboard/transaction/summary
@@ -20,4 +20,4 @@ dashboardRouter.get("/transaction/category", getDashboardCategory);
 /**
  * GET /dashboard/transaction/summary
  */
-dashboardRouter.get("/transaction/filter", getDashboardFilter);
+dashboardRouter.get("/transaction", getDashboardFilter);

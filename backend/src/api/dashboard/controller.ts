@@ -39,8 +39,10 @@ async function checkStatementOwner(res: Response, userId: number, statementId: n
     return true;
 }
 
-
-export async function getDashboardSummary(req: Request, res: Response) {
+/**
+ * Gets the transaction totals (income, spent, net)
+ */
+export async function getDashboardTransactionTotals(req: Request, res: Response) {
     try {
         const userId = getUserId(req);
         const statementId = toInt(req.query.statementId);
@@ -58,8 +60,10 @@ export async function getDashboardSummary(req: Request, res: Response) {
     }
 }
 
-
-export async function getDashboardCategory(req: Request, res: Response) {
+/**
+ * Gets the totals for all categories present in the bank statement
+ */
+export async function getDashboardCategoryTotals(req: Request, res: Response) {
     try {
         const userId = getUserId(req);
         const statementId = toInt(req.query.statementId);
@@ -78,7 +82,10 @@ export async function getDashboardCategory(req: Request, res: Response) {
 }
 
 
-export async function getDashboardFilter(req: Request, res: Response) {
+/**
+ * Gets all the transactions with its dates for the specified bank statement
+ */
+export async function getDashboardTransactions(req: Request, res: Response) {
     try {
         const userId = getUserId(req);
         const statementId = toInt(req.query.statementId);

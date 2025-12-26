@@ -1,6 +1,7 @@
 import express from "express";
 import { dashboardRouter } from "./api/dashboard/routes.js";
 import { transactionRouter } from "./api/transactions/routes.js";
+import { merchantsRouter } from "./api/merchants/routes.js";
 
 export const app = express();
 
@@ -16,5 +17,6 @@ app.use((req, _res, next) => {
 // Mount Routers
 app.use("/dashboard", dashboardRouter);
 app.use("/transaction", transactionRouter);
+app.use("/merchants", merchantsRouter);
 
 export default app

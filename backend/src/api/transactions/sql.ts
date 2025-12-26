@@ -1,5 +1,8 @@
 import { Pool } from "pg";
 
+/**
+ * Verify that a statement exists and belongs to the user.
+ */
 export async function sqlLatestStatementId(pool: Pool, userId: number): Promise<number> {
     const res = await pool.query(
         `
@@ -14,6 +17,9 @@ export async function sqlLatestStatementId(pool: Pool, userId: number): Promise<
     return res.rows[0]?.statement_id ?? null;
 }
 
+/**
+ * Get all the transaction information
+ */
 export async function sqlAllTransactions(pool: Pool, userId: number) {
     const res = await pool.query(
         `

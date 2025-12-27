@@ -51,7 +51,7 @@ export async function deleteCategory(req: Request, res: Response) {
     const data = await sqlDeleteCategory(pool, categoryId);
     res.json({ categoryId, data });
   } catch (err) {
-    console.error("getMerchantsInfo error:", err);
+    console.error("deleteAccount error:", err);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 }

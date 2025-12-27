@@ -12,11 +12,11 @@ INSERT INTO users (user_id, email, first_name, last_name) VALUES
 -- =========================
 -- ACCOUNTS (2 per user)
 -- =========================
-INSERT INTO accounts (account_id, user_id, bank_name, account_type) VALUES
-(1, 1, 'Chase', 'Checking'),
-(2, 1, 'American Express', 'Credit Card'),
-(3, 2, 'Bank of America', 'Checking'),
-(4, 2, 'Capital One', 'Credit Card');
+INSERT INTO accounts (account_id, user_id, bank_name, account_number, account_type) VALUES
+(1, 1, 'Chase', '842917364', 'Checking'),
+(2, 1, 'American Express', '590284716', 'Credit Card'),
+(3, 2, 'Bank of America', '173650928', 'Checking'),
+(4, 2, 'Capital One', '964205831' ,'Credit Card');
 
 -- =========================
 -- MERCHANTS

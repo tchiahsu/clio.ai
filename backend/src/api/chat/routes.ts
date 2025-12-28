@@ -30,7 +30,7 @@ chatRouter.post("/new", createNewChat);
 
 /**
  * POST /chat/messages
- * must provide userId and chatId as params
+ * must provide userId and chatId as params, and speakerType and message in body
  */
 chatRouter.post("/messages", saveChatMessage);
 

@@ -3,7 +3,10 @@ import pool from "../../database.js";
 import { sqlAssertStatementOwned, sqlDashboardTransactionsForStatement } from "../dashboard/sql.js";
 import {
     sqlLatestStatementId,
-    sqlAllTransactions
+    sqlAllTransactions,
+    sqlGetTransactionDetail,
+    sqlPatchTransactionCategory,
+    sqlPatchTransactionMerchant
 } from "../transactions/sql.js";
 
 /**
@@ -38,6 +41,9 @@ async function checkStatementOwner(res: Response, userId: number, statementId: n
     return true;
 }
 
+/**
+ * Gets all the transactions of for the given time period
+ */
 export async function getTransactionList(req: Request, res: Response) {
     try {
         const userId = getUserId(req);
@@ -68,6 +74,64 @@ export async function getTransactionList(req: Request, res: Response) {
         res.json({ scope: scope === "statement" ? "statement" : "latest", statementId, data })
     } catch (err) {
         console.error("Error getting the transaction list:", err);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+}
+
+/**
+ * Get the transaction details for a single transaction
+ */
+export async function getTransactionDetail(req: Request, res: Response) {
+    try {
+        const userId = getUserId(req);
+        const transactionId = toInt(req.query.transactionId);
+
+        if (!transactionId) return res.status(400).json({ error: "transactionId not found" });
+
+        const data = await sqlGetTransactionDetail(pool, transactionId, userId);
+        res.json({ transactionId, data });
+    } catch (err) {
+        console.error("Error getting transaction details:", err);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+}
+
+/**
+ * Change the category name of a transaction (assumes the new cateogry already exists)
+ */
+export async function patchTransactionCategory(req: Request, res: Response) {
+    try {
+        const userId = getUserId(req);
+        const categoryId = toInt(req.query.categoryId);
+        const transactionId = toInt(req.query.transactionId);
+
+        if (!categoryId) return res.status(400).json({ error: "category id not found" });
+        if (!transactionId) return res.status(400).json({ error: "transaction id not found"});
+
+        const data = await sqlPatchTransactionCategory(pool, userId, categoryId, transactionId);
+        res.json({ transactionId, categoryId, data });
+    } catch (err) {
+        console.error("Error updating transaction category name:", err);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+}
+
+/**
+ * Change the merchant name of a transaction (assumes the new merchant name already exists)
+ */
+export async function patchTransactionMerchant(req: Request, res: Response) {
+    try {
+        const userId = getUserId(req);
+        const transactionId = toInt(req.query.transactionId);
+        const merchantId = toInt(req.query.merchantId);
+
+        if (!transactionId) return res.status(400).json({ error: "transaction id not found" });
+        if (!merchantId) return res.status(400).json({ error: "merchant id not found" });
+
+        const data = await sqlPatchTransactionMerchant(pool, userId, transactionId, merchantId);
+        res.json({ transactionId, merchantId, data});
+    } catch (err) {
+        console.error("Error updating transaction merchant name:", err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 }

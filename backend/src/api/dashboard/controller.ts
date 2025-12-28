@@ -4,7 +4,8 @@ import {
     sqlAssertStatementOwned,
     sqlDashboardCategorySpendForStatement,
     sqlDashboardSummaryForStatement,
-    sqlDashboardTransactionsForStatement 
+    sqlDashboardTransactionsForStatement, 
+    sqlBudgetOverview
 } from "../dashboard/sql.js";
 
 /**
@@ -24,6 +25,15 @@ function toInt(v: any): number | undefined {
  */
 function getUserId(req: Request): number {
     return (req as any).user?.userId ?? 1;
+}
+
+/**
+ * Gets the current accountId .
+ * I tell TS that request has extra properties for category.
+ */
+function getAccountId(req: Request): number {
+  const id = Number(req.params.id);
+  return id;
 }
 
 /**
@@ -99,6 +109,25 @@ export async function getDashboardTransactions(req: Request, res: Response) {
         res.json({ statementId, data })
     } catch (err) {
         console.error("Error getting all transactions with dates:", err);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+}
+
+/**
+ * Gets the totals for all categories present in the bank statement
+ */
+export async function getBudgetOverview(req: Request, res: Response) {
+    try {
+        const userId = getUserId(req);
+        const accountId = getAccountId(req);
+
+        if (!userId) return res.status(400).json({ error: "userId not found" });
+        if (!accountId) return res.status(400).json({ error: "accountId not found" });
+        
+        const data = await sqlBudgetOverview(pool, userId, accountId);
+        res.json({ userId, accountId, data })
+    } catch (err) {
+        console.error("Error getting budget overview:", err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 }

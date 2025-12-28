@@ -2,7 +2,8 @@ import { Router } from "express";
 import {
     getDashboardCategoryTotals,
     getDashboardTransactions,
-    getDashboardTransactionTotals
+    getDashboardTransactionTotals,
+    getBudgetOverview
 } from "./controller.js";
 
 export const dashboardRouter = Router();
@@ -24,3 +25,9 @@ dashboardRouter.get("/transaction/category", getDashboardCategoryTotals);
  * must provide statementId as param
  */
 dashboardRouter.get("/transaction", getDashboardTransactions);
+
+/**
+ * GET /accounts/account
+ * must provide userId and accountId as params
+ */
+dashboardRouter.get("/budget/overview/:id", getBudgetOverview);

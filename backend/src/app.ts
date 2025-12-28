@@ -4,6 +4,7 @@ import { transactionRouter } from "./api/transactions/routes.js";
 import { merchantsRouter } from "./api/merchants/routes.js";
 import { categoriesRouter } from "./api/categories/routes.js";
 import { accountRouter } from "./api/accounts/routes.js";
+import { chatRouter } from "./api/chat/routes.js";
 
 export const app = express();
 
@@ -22,5 +23,6 @@ app.use("/transaction", transactionRouter);
 app.use("/merchants", merchantsRouter);
 app.use("/categories", categoriesRouter);
 app.use("/accounts", accountRouter);
+app.use("/chat", chatRouter);
 
 export default app

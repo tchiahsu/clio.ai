@@ -3,12 +3,15 @@ import { Pool } from "pg";
 /**
  * List of all merchant information. 
  */
-export async function sqlMerchantsInfo(pool: Pool) {
+export async function sqlMerchantsInfo(pool: Pool, userId: number) {
     const res = await pool.query(
         `
         SELECT * FROM merchants m
+        JOIN transactions t ON m.merchant_id = t.merchant_id
+        WHERE t.user_id = $1
         ORDER BY merchant_name DESC
         `,
+        [userId]
     );
 
     return res.rows;
@@ -17,14 +20,15 @@ export async function sqlMerchantsInfo(pool: Pool) {
 /**
  * Update merchant name.  
  */
-export async function sqlMerchantNameUpdate(pool: Pool, merchant_name_p: string, merchantId: number) {
+export async function sqlMerchantNameUpdate(pool: Pool, merchant_name_p: string, merchantId: number,  userId: number) {
     const res = await pool.query(
         `
-        UPDATE merchants 
+        UPDATE merchants m
         SET merchant_name = $1
-        WHERE merchant_id = $2
+        FROM transactions t
+        WHERE m.merchant_id = t.merchant_id AND m.merchant_id = $2 AND t.user_id = $3
         `,
-        [merchant_name_p, merchantId]
+        [merchant_name_p, merchantId, userId]
     );
 
     return res.rows;
@@ -33,13 +37,13 @@ export async function sqlMerchantNameUpdate(pool: Pool, merchant_name_p: string,
 /**
  * Get merchant transaction history.  
  */
-export async function sqlMerchantTransactions(pool: Pool, merchantId: number) {
+export async function sqlMerchantTransactions(pool: Pool, merchantId: number, userId: number) {
     const res = await pool.query(
         `
         SELECT * FROM transactions t
-        WHERE merchant_id = $1
+        WHERE t.merchant_id = $1 AND t.user_id = $2
         `,
-        [merchantId]
+        [merchantId, userId]
     );
 
     return res.rows;

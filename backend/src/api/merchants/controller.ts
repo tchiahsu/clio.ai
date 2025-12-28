@@ -15,11 +15,21 @@ function getMerchandId(req: Request): number {
 }
 
 /**
+ * Gets the current userId (fake user id for now).
+ * I tell TS that request has extra properties for user.
+ */
+function getUserId(req: Request): number {
+    return (req as any).user?.userId ?? 1;
+}
+
+/**
  * Gets all the merchants information
  */
 export async function getMerchantsList(req: Request, res: Response) {
     try {
-        const data = await sqlMerchantsInfo(pool);
+        const userId = getUserId(req);
+
+        const data = await sqlMerchantsInfo(pool, userId);
         res.json({data})
     } catch (err) {
         console.error("getMerchantsInfo error:", err);
@@ -34,11 +44,12 @@ export async function updateMerchantName(req: Request, res: Response) {
     try {
         const merchantId = getMerchandId(req);
         const newMerchantName = req.body.newMerchantName;
+        const userId = getUserId(req);
 
         if (!merchantId) return res.status(400).json({ error: "merchandId not found" });
         if (!newMerchantName) return res.status(400).json({ error: "new merchant name not found" });
         
-        const data = await sqlMerchantNameUpdate(pool, newMerchantName, merchantId);
+        const data = await sqlMerchantNameUpdate(pool, newMerchantName, merchantId, userId);
         res.json({ merchantId, newMerchantName})
     } catch (err) {
         console.error("updateMerchantName error:", err);
@@ -52,10 +63,11 @@ export async function updateMerchantName(req: Request, res: Response) {
 export async function getMerchantsHistory(req: Request, res: Response) {
     try {
         const merchantId = getMerchandId(req);
+        const userId = getUserId(req);
 
         if (!merchantId) return res.status(400).json({ error: "merchandId not found" });  
 
-        const data = await sqlMerchantTransactions(pool, merchantId);
+        const data = await sqlMerchantTransactions(pool, merchantId, userId);
         res.json({merchantId, data })
     } catch (err) {
         console.error("getMerchantsInfo error:", err);

@@ -1,7 +1,8 @@
 import { Router } from "express";
 import {
     addNewCategory,
-    deleteCategory
+    deleteCategory, 
+    getUserCategories
 } from "./controller.js";
 
 export const categoriesRouter = Router();
@@ -17,3 +18,9 @@ categoriesRouter.post("/category", addNewCategory);
  * must provide categoryId as param
  */
 categoriesRouter.delete("/category/:id", deleteCategory);
+
+/**
+ * GET /categories/category
+ * must provide userId as param
+ */
+categoriesRouter.get("/category", getUserCategories);

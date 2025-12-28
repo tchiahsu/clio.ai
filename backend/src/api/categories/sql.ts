@@ -1,7 +1,7 @@
 import { Pool } from "pg";
 
 /**
- * Create a new category.  
+ * Create a new category for a given user.  
  */
 export async function sqlAddNewCategory(pool: Pool, user_id_p: number, category_name_p: string) {
     const res = await pool.query(
@@ -17,16 +17,30 @@ export async function sqlAddNewCategory(pool: Pool, user_id_p: number, category_
 }
 
 /**
- * Delete an existing category.  
+ * Delete an existing category for a given user.  
  */
-export async function sqlDeleteCategory(pool: Pool, category_id_p: number) {
+export async function sqlDeleteCategory(pool: Pool, category_id_p: number, userId: number) {
     const res = await pool.query(
         `
         DELETE FROM categories 
-        WHERE category_id = $1
+        WHERE category_id = $1 AND user_id = $2
         RETURNING category_id  
         `,
-        [category_id_p]
+        [category_id_p, userId]
     );
     return res.rows[0];
+}
+
+/**
+ * Get all categories for given user. 
+ */
+export async function sqlGetCategories(pool: Pool, userId: number) {
+    const res = await pool.query(
+        `
+        SELECT * FROM categories 
+        WHERE user_id = $1
+        `,
+        [userId]
+    );
+    return res.rows;
 }

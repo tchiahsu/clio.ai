@@ -72,3 +72,28 @@ export async function sqlDashboardTransactionsForStatement(pool: Pool, userId: n
 
     return res.rows;
 }
+
+/**
+ * Get budget overview: total income, spending, savings. 
+ */
+export async function sqlBudgetOverview (pool: Pool, userId: number, accountId: number) {
+    const res = await pool.query(
+        `
+        WITH t AS (
+            SELECT statement_id, period_start FROM statements
+            WHERE user_id = $1 
+                AND account_id = $2
+                AND current_status = 'complete'
+            ORDER BY period_start DESC
+            LIMIT 2
+        )
+        SELECT to_char(t.period_start, 'YYYY-MM-DD') AS date, total_income, total_expenses, 
+            total_income - total_expenses AS savings 
+        FROM statement_summary ss
+        JOIN t ON ss.statement_id = t.statement_id
+        ORDER BY t.period_start DESC
+        `,
+        [userId, accountId]
+    );
+    return res.rows;
+}

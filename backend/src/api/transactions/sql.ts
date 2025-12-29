@@ -12,7 +12,7 @@ export async function sqlLatestStatementId(pool: Pool, userId: number) {
         LIMIT 1
         `,
         [userId]
-    )
+    );
 
     return res.rows[0]?.statement_id ?? null;
 }

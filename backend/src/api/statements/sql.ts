@@ -5,10 +5,10 @@ export async function sqlStatementList(pool: Pool, userId: number, limit?: numbe
 
   const res = await pool.query(
     `
-    SELECT s.statement_id, s.file_name, s.created_at, a.bank_name, a.account_number, a.account_type FROM statements s
+    SELECT s.statement_id, s.file_name, s.period_end, a.bank_name, a.account_number, a.account_type FROM statements s
     JOIN accounts a ON s.account_id = a.account_id
     WHERE s.user_id = $1
-    ORDER BY s.created_at DESC
+    ORDER BY s.period_end DESC
     ${hasLimit ? "LIMIT $2" : ""}
     `,
     hasLimit ? [userId, limit] : [userId]
@@ -20,7 +20,7 @@ export async function sqlStatementList(pool: Pool, userId: number, limit?: numbe
 export async function sqlStatementStatus(pool: Pool, userId: number, statementId: number) {
   const res = await pool.query(
     `
-    SELECT s.statement_id, s.status FROM statements s
+    SELECT s.statement_id, s.current_status FROM statements s
     WHERE s.user_id = $1
     AND s.statement_id = $2
     `,

@@ -33,13 +33,13 @@ export async function getStatementList(req: Request, res: Response) {
     const userId = getUserId(req);
     const limit = toInt(req.query.limit);
 
-    if (!limit) return res.status(400).json({ error: "statement id not found" });
+    if (limit != null && limit < 0) return res.status(400).json({ error: "limit must be >= 0" });
 
     const data = await sqlStatementList(pool, userId, limit);
-    res.json({ limit, data });
+    res.json({ data, limit: limit ?? null });
   } catch (err) {
     console.error("Error getting the transaction list:", err);
-    return res.json({ error: "Internal Server Error" });
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 }
 
@@ -51,9 +51,13 @@ export async function getStatementStatus(req: Request, res: Response) {
     const userId = getUserId(req);
     const statementId = toInt(req.query.statementId);
 
-    if (!statementId) return res.status(400).json({ error: "statement id not found" });
+    if (statementId == null || statementId <= 0) return res.status(400).json({ error: "statement id not found" });
 
     const data = await sqlStatementStatus(pool, userId, statementId);
+    if (!data) {
+      return res.status(404).json({ error: "statement not found" })
+    }
+
     res.json({ statementId, data });
   } catch (err) {
     console.error("Error getting the transaction list:", err);
@@ -72,7 +76,10 @@ export async function deleteStatement(req: Request, res: Response) {
     if (!statementId) return res.status(400).json({ error: "statement id not found" });
 
     const data = await sqlDeleteStatement(pool, userId, statementId);
-    res.json({ statementId, data });
+
+    if (!data) return res.status(404).json({ error: "statement not found" });
+
+    res.json({ data });
   } catch (err) {
     console.error("Error getting the transaction list:", err);
     return res.json({ error: "Internal Server Error" });

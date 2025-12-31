@@ -9,7 +9,7 @@ import {
 export const transactionRouter = Router();
 
 /**
- * GET /transasction/
+ * GET /transasction/all
  * must provide scope as param
  * - scope="all" nothing else
  * - scope="statement" also provide statementId as param

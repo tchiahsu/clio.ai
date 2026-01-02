@@ -56,3 +56,15 @@ export async function sqlAddStatement(pool: Pool, userId: number, fileName: stri
 
   return res.rows[0];
 }
+
+export async function sqlValidateStatement(pool: Pool, userId: number, fileHash: string) {
+  const res = await pool.query(
+    `
+    SELECT statementId FROM statements
+    WHERE user_id = $1
+    AND file_hash = $2
+    `,
+    [userId, fileHash]);
+
+    return res.rows;
+}

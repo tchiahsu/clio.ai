@@ -1,11 +1,18 @@
 import { Router } from "express";
 import {
+  postStatementUpload,
   getStatementList,
   getStatementStatus,
   deleteStatement
 } from "./controller.js";
 
 export const statementRouter = Router();
+
+/**
+ * POST /statements/
+ * triggered when user uploads a bank statement
+ */
+statementRouter.post("/", postStatementUpload);
 
 /**
  * GET /statement/

@@ -142,41 +142,120 @@ INSERT INTO categories (user_id, category_name) VALUES
 
 -- =========================
 -- STATEMENTS (14)
--- - include complete/processing/failed
--- - include some "just uploaded" (NULL account + NULL period)
 -- =========================
 INSERT INTO statements
-(user_id, account_id, period_start, period_end, file_name, current_status, uploaded_at, parsed_at, error_message)
+(
+  user_id,
+  account_id,
+  period_start,
+  period_end,
+  file_name,
+  file_hash,
+  current_status,
+  uploaded_at,
+  parsed_at,
+  error_message
+)
 VALUES
--- Tony: Chase Checking (Jan, Feb, Mar) - complete, complete, processing
-(1, 1, '2025-01-01', '2025-01-31', 'chase_checking_2025_01.pdf', 'complete', '2025-02-02T09:12:00Z', '2025-02-02T09:13:20Z', NULL),
-(1, 1, '2025-02-01', '2025-02-28', 'chase_checking_2025_02.pdf', 'complete', '2025-03-02T09:11:00Z', '2025-03-02T09:13:10Z', NULL),
-(1, 1, '2025-03-01', '2025-03-31', 'chase_checking_2025_03.pdf', 'processing', '2025-04-02T09:11:00Z', NULL, NULL),
+-- Tony: Chase Checking (Jan, Feb, Mar)
+(
+  1, 1, '2025-01-01', '2025-01-31',
+  'chase_checking_2025_01.pdf',
+  'a1f3c2e9b4d87c6a5e2f9d1a4b6c7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b',
+  'complete', '2025-02-02T09:12:00Z', '2025-02-02T09:13:20Z', NULL
+),
+(
+  1, 1, '2025-02-01', '2025-02-28',
+  'chase_checking_2025_02.pdf',
+  'b2c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a1b2c3d4e5f6a7b8c9d0e1f2a',
+  'complete', '2025-03-02T09:11:00Z', '2025-03-02T09:13:10Z', NULL
+),
+(
+  1, 1, '2025-03-01', '2025-03-31',
+  'chase_checking_2025_03.pdf',
+  'c3d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a1b2c3d4e5f6a7b8c9d0e1f2a3b',
+  'processing', '2025-04-02T09:11:00Z', NULL, NULL
+),
 
--- Tony: Amex CC (Jan, Feb, Mar) - complete, failed, queued
-(1, 2, '2025-01-01', '2025-01-31', 'amex_cc_2025_01.pdf', 'complete', '2025-02-01T20:10:00Z', '2025-02-01T20:12:10Z', NULL),
-(1, 2, '2025-02-01', '2025-02-28', 'amex_cc_2025_02.pdf', 'failed',   '2025-03-01T20:10:00Z', NULL, 'PDF parse failed: unsupported table layout'),
-(1, 2, NULL, NULL, 'amex_cc_upload_pending.pdf', 'queued', '2025-03-15T18:33:00Z', NULL, NULL),
+-- Tony: Amex CC (Jan, Feb, queued)
+(
+  1, 2, '2025-01-01', '2025-01-31',
+  'amex_cc_2025_01.pdf',
+  'd4e6f7a8b9c0d1e2f3a4b5c6d7e8f9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c',
+  'complete', '2025-02-01T20:10:00Z', '2025-02-01T20:12:10Z', NULL
+),
+(
+  1, 2, '2025-02-01', '2025-02-28',
+  'amex_cc_2025_02.pdf',
+  'e5f7a8b9c0d1e2f3a4b5c6d7e8f9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d',
+  'failed', '2025-03-01T20:10:00Z', NULL,
+  'PDF parse failed: unsupported table layout'
+),
+(
+  1, 2, NULL, NULL,
+  'amex_cc_upload_pending.pdf',
+  'f6a8b9c0d1e2f3a4b5c6d7e8f9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e',
+  'queued', '2025-03-15T18:33:00Z', NULL, NULL
+),
 
--- Alex: BoA Checking (Jan, Feb) - complete, complete
-(2, 3, '2025-01-01', '2025-01-31', 'bofa_checking_2025_01.pdf', 'complete', '2025-02-03T12:02:00Z', '2025-02-03T12:03:40Z', NULL),
-(2, 3, '2025-02-01', '2025-02-28', 'bofa_checking_2025_02.pdf', 'complete', '2025-03-03T12:02:00Z', '2025-03-03T12:03:35Z', NULL),
+-- Alex: BoA Checking
+(
+  2, 3, '2025-01-01', '2025-01-31',
+  'bofa_checking_2025_01.pdf',
+  '01a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6',
+  'complete', '2025-02-03T12:02:00Z', '2025-02-03T12:03:40Z', NULL
+),
+(
+  2, 3, '2025-02-01', '2025-02-28',
+  'bofa_checking_2025_02.pdf',
+  '12b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7',
+  'complete', '2025-03-03T12:02:00Z', '2025-03-03T12:03:35Z', NULL
+),
 
--- Alex: Capital One CC (Jan, Feb) - failed, complete
-(2, 4, '2025-01-01', '2025-01-31', 'cap1_cc_2025_01.pdf', 'failed',   '2025-02-04T08:45:00Z', NULL, 'CSV missing required columns: amount'),
-(2, 4, '2025-02-01', '2025-02-28', 'cap1_cc_2025_02.pdf', 'complete', '2025-03-04T08:45:00Z', '2025-03-04T08:47:10Z', NULL),
+-- Alex: Capital One CC
+(
+  2, 4, '2025-01-01', '2025-01-31',
+  'cap1_cc_2025_01.pdf',
+  '23c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8',
+  'failed', '2025-02-04T08:45:00Z', NULL,
+  'CSV missing required columns: amount'
+),
+(
+  2, 4, '2025-02-01', '2025-02-28',
+  'cap1_cc_2025_02.pdf',
+  '34d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809',
+  'complete', '2025-03-04T08:45:00Z', '2025-03-04T08:47:10Z', NULL
+),
 
--- Maya: Wells Fargo Checking (Jan, Feb) - complete, processing
-(3, 5, '2025-01-01', '2025-01-31', 'wf_checking_2025_01.pdf', 'complete', '2025-02-05T15:01:00Z', '2025-02-05T15:04:00Z', NULL),
-(3, 5, '2025-02-01', '2025-02-28', 'wf_checking_2025_02.pdf', 'processing', '2025-03-05T15:01:00Z', NULL, NULL),
+-- Maya: Wells Fargo
+(
+  3, 5, '2025-01-01', '2025-01-31',
+  'wf_checking_2025_01.pdf',
+  '45e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a',
+  'complete', '2025-02-05T15:01:00Z', '2025-02-05T15:04:00Z', NULL
+),
+(
+  3, 5, '2025-02-01', '2025-02-28',
+  'wf_checking_2025_02.pdf',
+  '56f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b',
+  'processing', '2025-03-05T15:01:00Z', NULL, NULL
+),
 
--- Maya: Discover CC (Jan) - complete
-(3, 6, '2025-01-01', '2025-01-31', 'discover_cc_2025_01.pdf', 'complete', '2025-02-06T18:22:00Z', '2025-02-06T18:24:30Z', NULL),
+-- Maya: Discover CC
+(
+  3, 6, '2025-01-01', '2025-01-31',
+  'discover_cc_2025_01.pdf',
+  '67f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3',
+  'complete', '2025-02-06T18:22:00Z', '2025-02-06T18:24:30Z', NULL
+),
 
--- A “dangling upload” example: statement exists, not yet assigned to account/period (queued)
-(2, NULL, NULL, NULL, 'unknown_bank_upload.pdf', 'queued', '2025-03-10T11:12:00Z', NULL, NULL);
-
--- statement_id now 1..14
+-- Dangling upload (unknown bank)
+(
+  2, NULL, NULL, NULL,
+  'unknown_bank_upload.pdf',
+  '78a91b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f708192a3b4c',
+  'queued', '2025-03-10T11:12:00Z', NULL, NULL
+);
 
 -- =========================
 -- STATEMENT SUMMARY (only for completed statements)

@@ -41,6 +41,7 @@ CREATE TABLE statements(
 	account_id INT,
 	period_start DATE,
 	period_end DATE, 
+	file_hash CHAR(64) UNIQUE,
 	file_name VARCHAR(128) NOT NULL, 
 	current_status statement_status NOT NULL DEFAULT 'queued',
 	uploaded_at TIMESTAMPTZ,

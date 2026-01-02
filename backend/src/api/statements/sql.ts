@@ -43,3 +43,16 @@ export async function sqlDeleteStatement(pool: Pool, userId: number, statementId
 
   return res.rows[0] ?? null;
 }
+
+export async function sqlAddStatement(pool: Pool, userId: number, fileName: string, fileHash: string) {
+  const res = await pool.query(
+    `
+    INSERT into statements (user_id, file_name, file_hash)
+    VALUES ($1, $2, $3)
+    RETURNING statement_id
+    `,
+    [userId, fileName, fileHash]
+  );
+
+  return res.rows[0];
+}

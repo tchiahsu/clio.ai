@@ -1,10 +1,16 @@
 import type { Request, Response } from "express";
-import pool from "../../database.js";
+import { createHash } from "crypto";
 import {
   sqlStatementList,
   sqlStatementStatus,
-  sqlDeleteStatement
+  sqlDeleteStatement,
+  sqlAddStatement,
+  sqlValidateStatement
 } from "../statements/sql.js";
+
+import fs from "fs";
+import pool from "../../database.js";
+import dataParsing from "../data-parsing.js";
 
 /**
  * Req.query is always a string, so number must be converted into integers.
@@ -23,6 +29,56 @@ function toInt(v: any): number | undefined {
  */
 function getUserId(req: Request): number {
     return (req as any).user?.userId ?? 1;
+}
+
+/**
+ * Hash a file by path
+ */
+function hashFile(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = createHash("sha256");
+    const stream = fs.createReadStream(filePath);
+
+    stream.on("error", reject);
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.on("end", () => resolve(hash.digest("hex")));
+  })
+}
+
+/**
+ * Initiates the upload logic by saving the file to disk, and triggering
+ * the data parsing pipeline. Returns the status of the bank statemenet uploaded
+ */
+export async function postStatementUpload(req: Request, res: Response) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    const userId = getUserId(req);
+    const filePath = req.file.path;
+    const fileName = req.file.filename;
+
+    // Hash the file
+    const fileHash = await hashFile(filePath);
+
+    // Check sql to see if it exists
+    const exists = await sqlValidateStatement(pool, userId, fileHash);
+    if (exists && exists.length > 0) return res.status(409).json({ error: "You have already added this bank statement" });
+
+    // Create a statement row
+    const newStatement = await sqlAddStatement(pool, userId, fileName, fileHash);
+    const statementId = newStatement.statement_id;
+
+    // Trigger the pipeline
+    // dataParsing(statementId, filePath);
+
+    // Return
+    return res.status(202).json({ statementId, status: "processing", });
+  } catch (err) {
+    console.error("Error uploading bank statement:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
 }
 
 /**

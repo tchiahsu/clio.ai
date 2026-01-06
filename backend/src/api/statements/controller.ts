@@ -10,7 +10,7 @@ import {
 
 import fs from "fs";
 import pool from "../../database.js";
-import dataParsing from "../data-parsing.js";
+import dataParsing from "../data-parsing/data-parsing.js";
 
 /**
  * Req.query is always a string, so number must be converted into integers.

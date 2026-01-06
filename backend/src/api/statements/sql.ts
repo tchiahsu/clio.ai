@@ -43,3 +43,43 @@ export async function sqlDeleteStatement(pool: Pool, userId: number, statementId
 
   return res.rows[0] ?? null;
 }
+
+export async function sqlAddStatement(pool: Pool, userId: number, fileName: string, fileHash: string) {
+  const res = await pool.query(
+    `
+    INSERT into statements (user_id, file_name, file_hash)
+    VALUES ($1, $2, $3)
+    RETURNING statement_id
+    `,
+    [userId, fileName, fileHash]
+  );
+
+  return res.rows[0];
+}
+
+export async function sqlValidateStatement(pool: Pool, userId: number, fileHash: string) {
+  const res = await pool.query(
+    `
+    SELECT statement_id FROM statements
+    WHERE user_id = $1
+    AND file_hash = $2
+    `,
+    [userId, fileHash]);
+
+    return res.rows;
+}
+
+export async function sqlSetStatusProcessing(pool: Pool, userId: number, statementId: number) {
+  const res = await pool.query(
+    `
+    UPDATE statements
+    SET current_status = 'processing'
+    WHERE user_id = $1
+    AND statement_id = $2
+    RETURNING statement_id
+    `,
+    [userId, statementId]
+  )
+
+  return res.rows[0];
+}

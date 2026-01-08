@@ -1,6 +1,6 @@
 import { PDFParse } from "pdf-parse";
 import extractAccountInfo from "./extract-account.js";
-import extractTransactions from "./extract-transaction.js";
+import extractTransactions from "./extract-transactions.js";
 
 /**
  * PDF Parsing Pipeline

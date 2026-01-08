@@ -1,6 +1,10 @@
+import getClassification from "./classify-description.js";
+
 export type TransactionInfo = {
   date?: string | undefined;
-  description?: string | undefined;
+  category?: string | undefined;
+  confidence?: number | undefined;
+  merchant?: string | undefined;
   amount?: number | undefined;
   raw: string | undefined;
 }
@@ -104,11 +108,14 @@ export default function extractTransactions(text: string) {
 
     const isoDate = determineTransactionYear(date, statementEnd);
     const normAmount = normalizeAmount(amount);
-    const normDescription = normalizeText(description)
+    const normDescription = normalizeText(description);
+    const {merchant, category, confidence} = getClassification(normDescription);
 
     transactions.push({
       date: isoDate,
-      description: normDescription,
+      category: category,
+      confidence: confidence,
+      merchant: merchant,
       amount: normAmount,
       raw: text
     })

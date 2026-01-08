@@ -47,8 +47,8 @@ export async function sqlDeleteStatement(pool: Pool, userId: number, statementId
 export async function sqlAddStatement(pool: Pool, userId: number, fileName: string, fileHash: string) {
   const res = await pool.query(
     `
-    INSERT into statements (user_id, file_name, file_hash)
-    VALUES ($1, $2, $3)
+    INSERT into statements (user_id, file_name, file_hash, uploaded_at)
+    VALUES ($1, $2, $3, NOW())
     RETURNING statement_id
     `,
     [userId, fileName, fileHash]
@@ -79,6 +79,27 @@ export async function sqlSetStatusProcessing(pool: Pool, userId: number, stateme
     RETURNING statement_id
     `,
     [userId, statementId]
+  )
+
+  return res.rows[0];
+}
+
+export async function sqlUpdateStatement(pool: Pool, userId: number, statementId: number, accountId: number, periodStart: string, periodEnd: string) {
+  const res = await pool.query(
+    `
+    UPDATE statements
+    SET
+      account_id = $1,
+      period_start = $2,
+      period_end = $3,
+      current_status = 'parsed',
+      parsed_at = NOW(),
+      error_message = NULL
+    WHERE statement_id = $4
+      AND user_id = $5
+    RETURNING statement_id, account_id, period_start, period_end, current_status, parsed_at
+    `,
+    [accountId, periodStart, periodEnd, statementId, userId]
   )
 
   return res.rows[0];

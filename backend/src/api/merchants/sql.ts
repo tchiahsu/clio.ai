@@ -17,6 +17,35 @@ export async function sqlMerchantsInfo(pool: Pool, userId: number) {
     return res.rows;
 }
 
+export async function sqlAddMerchant(pool: Pool, merchant_name_p: string) {
+    const res = await pool.query(
+        `
+        INSERT INTO merchants (merchant_name)
+        VALUES ($1)
+        ON CONFLICT (merchant_name) DO NOTHING
+        RETURNING merchant_id;
+        `,
+        [merchant_name_p]
+    )
+
+    // Inserted successfully
+    if (res.rows.length > 0) {
+        return res.rows[0].merchant_id;
+    }
+
+    // Already existed → fetch it
+    const selectRes = await pool.query(
+        `
+        SELECT merchant_id
+        FROM merchants
+        WHERE merchant_name = $1;
+        `,
+        [merchant_name_p]
+    );
+
+    return selectRes.rows[0].merchant_id;
+}
+
 /**
  * Update merchant name.  
  */

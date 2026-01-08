@@ -97,3 +97,47 @@ export async function sqlPatchTransactionMerchant(pool: Pool, userId: number, tr
 
     return res.rows[0] ?? null;
 }
+
+export async function sqlAddTransaction(
+  pool: Pool,
+  userId: number,
+  accountId: number,
+  statementId: number | null,
+  transactionDate: string,
+  description: string,
+  amount: string | number,
+  merchantId: number | null = null,
+  categoryId: number | null = null,
+  categoryConfidence: number = 0
+) {
+  const res = await pool.query(
+    `
+    INSERT INTO transactions (
+      user_id,
+      account_id,
+      statement_id,
+      merchant_id,
+      category_id,
+      category_confidence,
+      transaction_date,
+      description,
+      amount
+    )
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    RETURNING transaction_id
+    `,
+    [
+      userId,
+      accountId,
+      statementId,
+      merchantId,
+      categoryId,
+      categoryConfidence,
+      transactionDate,
+      description,
+      amount,
+    ]
+  );
+
+  return res.rows[0];
+}

@@ -109,11 +109,11 @@ export default function extractTransactions(text: string) {
     const isoDate = determineTransactionYear(date, statementEnd);
     const normAmount = normalizeAmount(amount);
     const normDescription = normalizeText(description);
-    const {merchant, category, confidence} = getClassification(normDescription);
+    const {merchant, categoryKey, confidence} = getClassification(normDescription);
 
     transactions.push({
       date: isoDate,
-      category: category,
+      category: categoryKey,
       confidence: confidence,
       merchant: merchant,
       amount: normAmount,

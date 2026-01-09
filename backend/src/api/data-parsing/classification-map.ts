@@ -1,5 +1,5 @@
 // -----------------------------------------------
-// CATEGORIZE MERCHANT
+// CATEGORIZE CATEGORY TIER 1
 // -----------------------------------------------
 
 type MerchantCategory = {
@@ -16,6 +16,7 @@ export const CATEGORY_MAP: Record<string, MerchantCategory> = {
   "wholefoods": { categoryKey: "groceries", confidence: 0.98 },
   "trader joe's": { categoryKey: "groceries", confidence: 0.98 },
   "trader joes": { categoryKey: "groceries", confidence: 0.98 },
+  "h mart": { categoryKey: "groceries", confidence: 0.97},
   "aldi": { categoryKey: "groceries", confidence: 0.97 },
   "lidl": { categoryKey: "groceries", confidence: 0.97 },
   "kroger": { categoryKey: "groceries", confidence: 0.96 },
@@ -61,6 +62,7 @@ export const CATEGORY_MAP: Record<string, MerchantCategory> = {
   "dunkin'": { categoryKey: "coffee", confidence: 0.98 },
   "peet's": { categoryKey: "coffee", confidence: 0.96 },
   "peets": { categoryKey: "coffee", confidence: 0.96 },
+  "tatte": { categoryKey: "coffee", confidence: 0.96},
 
   // ---------- Alcohol / Bars ----------
   "total wine": { categoryKey: "alcohol", confidence: 0.9 },
@@ -79,6 +81,7 @@ export const CATEGORY_MAP: Record<string, MerchantCategory> = {
   "lyft": { categoryKey: "rideshare", confidence: 0.96 },
   "lime": { categoryKey: "transportation", confidence: 0.75 },
   "bird": { categoryKey: "transportation", confidence: 0.75 },
+  "wanderu": { categoryKey: "transportation", confidence: 0.75 },
 
   // ---------- Fuel ----------
   "shell": { categoryKey: "fuel", confidence: 0.9 },
@@ -87,6 +90,7 @@ export const CATEGORY_MAP: Record<string, MerchantCategory> = {
   "bp": { categoryKey: "fuel", confidence: 0.9 },
   "sunoco": { categoryKey: "fuel", confidence: 0.9 },
   "citgo": { categoryKey: "fuel", confidence: 0.9 },
+  "speedway": { categoryKey: "fuel", confidence: 0.9 },
 
   // ---------- Streaming ----------
   "netflix": { categoryKey: "streaming", confidence: 0.98 },
@@ -100,9 +104,10 @@ export const CATEGORY_MAP: Record<string, MerchantCategory> = {
   "youtube premium": { categoryKey: "streaming", confidence: 0.9 },
 
   // ---------- Subscriptions / Music ----------
-  "spotify": { categoryKey: "streaming", confidence: 0.95 },
-  "apple music": { categoryKey: "streaming", confidence: 0.95 },
-  "pandora": { categoryKey: "streaming", confidence: 0.9 },
+  "spotify": { categoryKey: "music", confidence: 0.95 },
+  "apple music": { categoryKey: "music", confidence: 0.95 },
+  "pandora": { categoryKey: "music", confidence: 0.9 },
+  "youtube music": { categoryKey: "music", confidence: 0.8 },
 
   // ---------- Software / Cloud ----------
   "adobe": { categoryKey: "software", confidence: 0.9 },
@@ -181,7 +186,7 @@ export const CATEGORY_MAP: Record<string, MerchantCategory> = {
 
 
 // -----------------------------------------------
-// CATEGORIZE CATEGORY
+// CATEGORIZE CATEGORY TIER 2
 // -----------------------------------------------
 
 export type PatternRule = {
@@ -223,13 +228,14 @@ export const CATEGORY_RGX: PatternRule[] = [
   { re: /\b(home\s*depot|lowe'?s|hardware|lumber|plumbing|paint)\b/i, categoryKey: "home_maintenance", confidence: 0.7 },
 
   // ---------- Groceries ----------
-  { re: /\b(grocery|supermarket|market\b|foods?\b|produce|butcher|deli)\b/i, categoryKey: "groceries", confidence: 0.7 },
+  { re: /\b(grocery|supermarket|market\b|foods?\b|produce|butcher|convenience)\b/i, categoryKey: "groceries", confidence: 0.7 },
   { re: /\b(costco|sam'?s\s*club|bj'?s)\b/i, categoryKey: "groceries", confidence: 0.6, note: "Warehouse stores also shopping" },
 
   // ---------- Dining Out / Fast Food / Coffee ----------
-  { re: /\b(restaurant|diner|bistro|grill|pizza|taqueria|sushi|ramen|bbq)\b/i, categoryKey: "dining_out", confidence: 0.65 },
-  { re: /\b(mcdonald|burger\s*king|wendy|taco\s*bell|kfc|subway)\b/i, categoryKey: "fast_food", confidence: 0.8 },
+  { re: /\b(restaurant|diner|bistro|grill|pizza|taqueria|sushi|ramen|bbq|deli|noodles|house)\b/i, categoryKey: "dining_out", confidence: 0.65 },
+  { re: /\b(mcdonald|burger\s*king|wendy|taco\s*bell|kfc|subway|halal)\b/i, categoryKey: "fast_food", confidence: 0.8 },
   { re: /\b(coffee|cafe|espresso|latte)\b/i, categoryKey: "coffee", confidence: 0.75 },
+  { re: /\b(bakery)\b/, categoryKey: "bakery", confidence: 0.65 },
   { re: /\b(uber\s*eats|doordash|grubhub|seamless|postmates|deliver(y|ies))\b/i, categoryKey: "food_delivery", confidence: 0.85 },
 
   // ---------- Alcohol ----------
@@ -269,8 +275,8 @@ export const CATEGORY_RGX: PatternRule[] = [
 
   // ---------- Entertainment / Events / Hobbies ----------
   { re: /\b(movie|cinema|theater|ticket|concert|festival|event)\b/i, categoryKey: "events", confidence: 0.65 },
-  { re: /\b(game|gaming|steam|playstation|xbox|nintendo)\b/i, categoryKey: "hobbies", confidence: 0.65 },
-  { re: /\b(entertainment)\b/i, categoryKey: "entertainment", confidence: 0.6 },
+  { re: /\b(game|gaming|steam|playstation|xbox|nintendo)\b/i, categoryKey: "video_games", confidence: 0.75 },
+  { re: /\b(entertainment|arcade)\b/i, categoryKey: "entertainment", confidence: 0.6 },
 
   // ---------- Travel ----------
   { re: /\b(airbnb|hotel|inn|resort|marriott|hilton|hyatt)\b/i, categoryKey: "lodging", confidence: 0.75 },

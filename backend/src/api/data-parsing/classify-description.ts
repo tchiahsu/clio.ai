@@ -1,38 +1,115 @@
 import { CATEGORY_MAP, CATEGORY_RGX } from "./classification-map.js";
 
+const MERCHANT_PREFIX = [
+  "MTA*",
+  "SQ *",
+  "SQC*",
+  "TST*",
+  "PP*",
+  "PAYPAL *",
+  "GOOGLE *",
+  "SP ",
+  "CKE*",
+  "CHK*",
+  "POS ",
+  "ACH ",
+  "VENMO *",
+  "ZELLE *",
+  "UEP",
+]
+
+const MERCHANT_SUFFIX = [
+  "INC",
+  "INCORPORATED",
+  "CORP",
+  "CORPORATION",
+  "LLC",
+  "LTD",
+  "LIMITED",
+  "CO",
+  "COMPANY",
+  "GROUP",
+  "HOLDINGS",
+  "ENTERPRISES",
+  "INTL",
+  "INTERNATIONAL",  
+]
+
+const DELIVERY_SERVICES = [
+  "DD",
+  "DOORDASH",
+  "GRUBHUB",
+  "UBER EATS",
+  "UBEREATS",
+  "POSTMATES",
+  "SEAMLESS",
+  "CAVIAR",  
+]
 
 function extractMerchant(description: string) {
-  let s = description.replace(/\s+/g, " ").replace(/[•·]/g, " ").trim().toUpperCase();
+  // Try actual tabs first, then literal \t
+  let parts = description.split(/\t+/);
+  
+  if (parts.length < 3) {
+    parts = description.split(/\\t+/);
+  }
 
-  // Remove trailing reference numeric runs
-  s = s.replace(/(?:\s+\d{2,}){1,}\s*$/g, "");
+  let merchant = parts.length >= 3 ? parts[0] : description;
 
-  // Remove trailing state code if present at the end
-  s = s.replace(/\s+[A-Z]{2}\s*$/g, "");
+  return merchant?.trim();
+}
 
-  // Remove trailing zip if present
-  s = s.replace(/\s+\d{5}(?:-\d{4})?\s*$/g, "");
+function normalizeMerchant(merchant: string) {
+  let cleaned = merchant.toUpperCase();
 
-  // Strip common noise words (bank-agnostic set)
-  s = s.replace(/\b(POS|PURCHASE|DEBIT|CREDIT|CARD|ONLINE|WEB|MOBILE)\b/g, " ");
+  for (const prefix of MERCHANT_PREFIX) {
+    if (cleaned.startsWith(prefix)) {
+      cleaned = cleaned.slice(prefix.length).trim();
+      break;
+    }
+  }
 
-  // Clean punctuation but keep & and '
-  s = s.replace(/[^\w\s&']/g, " ");
+  // Replace "." with a space
+  cleaned = cleaned.replace(/\./g, " ");
 
-  // Collapse spaces
-  s = s.replace(/\s+/g, " ").trim();
+  // Remove punctuation entirely (keep & and ')
+  cleaned = cleaned.replace(/[^\w\s&']/g, " ");
 
-  // Select merchant on the left of the delimiter
-  // Example: Amazon - Digital Service -> take Amazon only
-  s = (s.split(" - ")[0] ?? "").split(" / ")[0] ?? "";
-  s = s.trim();
+  // Normalize whitespace
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
 
-  return s || "UNKNOWN";
+  // Strip delivery service names
+  for (const service of DELIVERY_SERVICES) {
+    cleaned = cleaned.replace(new RegExp(`\\b${service}\\b`, "gi"), "").trim();
+  }
+
+  // Strip corporate suffixes from the end
+  for (const suffix of MERCHANT_SUFFIX) {
+    const suffixRegex = new RegExp(`\\s+${suffix}\\s*$`, "i");
+    cleaned = cleaned.replace(suffixRegex, "").trim();
+  }
+
+  // Remove trailing alphanumeric codes (like 032498 or 32njko23j02)
+  cleaned = cleaned.replace(/\s+[\dA-Z]*\d[\dA-Z]*\s*$/gi, "");
+
+  // Strip common noise words
+  cleaned = cleaned.replace(/\b(POS|PURCHASE|DEBIT|CREDIT|CARD|ONLINE|WEB|MOBILE)\b/gi, "");
+
+  // Collapse spaces again after removals
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
+
+  // Take left side of delimiters
+  cleaned = (cleaned.split(" - ")[0] ?? "").split(" / ")[0] ?? "";
+
+  return cleaned.trim() || "UNKNOWN";
 }
 
 
-export default function getCalssification(description: string) {
-  const merchant = extractMerchant(description).toLowerCase();
+export default function getClassification(description: string) {
+  const rawMerchant = extractMerchant(description);
+  if (!rawMerchant) return;
+
+  const merchant = normalizeMerchant(rawMerchant).toLowerCase();
 
   // Check if Merchant is in Tier 1 Categorization
   const firstMatch = CATEGORY_MAP[merchant];
@@ -50,7 +127,7 @@ export default function getCalssification(description: string) {
     if (rule.re.test(fullDescription)) {
       return {
         merchant: merchant,
-        categoryKey: rule.categoryKey,
+        category: rule.categoryKey,
         confidence: rule.confidence
       };
     }
@@ -58,7 +135,7 @@ export default function getCalssification(description: string) {
 
   return {
     merchant: merchant,
-    categoryKey: "misc",
+    category: "misc",
     confidence: 0
   };
 }

@@ -1,5 +1,5 @@
+ROLLBACK;
 SET search_path TO clio;
-
 BEGIN;
 
 -- Make IDs deterministic every time you run the seed
@@ -18,10 +18,10 @@ RESTART IDENTITY CASCADE;
 -- =========================
 -- USERS (3)
 -- =========================
-INSERT INTO users (email, first_name, last_name) VALUES
-('tony@example.com', 'Tony', 'Hsu'),      -- user_id = 1
-('alex@example.com', 'Alex', 'Rivera'),   -- user_id = 2
-('maya@example.com', 'Maya', 'Chen');     -- user_id = 3
+INSERT INTO users (email, first_name, last_name, password_hash) VALUES
+('tony@example.com', 'Tony', 'Hsu', '$2b$10$oM7G/7B1HLktlU3KlrA4v.utlA0QxuEoCuYIdtkq38nBdTXaoDbJC'),      -- user_id = 1, password hashed from 'password123'
+('alex@example.com', 'Alex', 'Rivera', '$2b$10$oM7G/7B1HLktlU3KlrA4v.utlA0QxuEoCuYIdtkq38nBdTXaoDbJC'),   -- user_id = 2, password hashed from 'password123'
+('maya@example.com', 'Maya', 'Chen', '$2b$10$oM7G/7B1HLktlU3KlrA4v.utlA0QxuEoCuYIdtkq38nBdTXaoDbJC');     -- user_id = 3, password hashed from 'password123'
 
 -- =========================
 -- ACCOUNTS (2 per user = 6)

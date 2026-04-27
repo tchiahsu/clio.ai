@@ -3,6 +3,7 @@ import getClassification from "./classify-description.js";
 export type TransactionInfo = {
   date?: string | undefined;
   category?: string | undefined;
+  subcategory?: string | undefined;
   confidence?: number | undefined;
   merchant?: string | undefined;
   amount?: number | undefined;
@@ -65,7 +66,7 @@ function normalizeAmount(amount: string) {
  * Remove unnecessary line and spacing from bank statement line.
  */
 function normalizeText(text: string) {
-  return text.replace(/s+/g, " ").trim();
+  return text.replace(/\s+/g, " ").trim();
 }
 
 /**
@@ -114,6 +115,7 @@ export default function extractTransactions(text: string) {
     transactions.push({
       date: isoDate,
       category: classification?.category,
+      subcategory: classification?.subcategory,
       confidence: classification?.confidence,
       merchant: classification?.merchant,
       amount: normAmount,

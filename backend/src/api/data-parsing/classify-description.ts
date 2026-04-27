@@ -1,4 +1,4 @@
-import { CATEGORY_MAP, CATEGORY_RGX } from "./classification-map.js";
+import { CATEGORY_MAP, CATEGORY_RGX, SUBCATEGORY_TO_CATEGORY, MERCHANT_NAME_MAP } from "./classification-map.js";
 
 const MERCHANT_PREFIX = [
   "MTA*",
@@ -54,20 +54,30 @@ function extractMerchant(description: string) {
     parts = description.split(/\\t+/);
   }
 
-  let merchant = parts.length >= 3 ? parts[0] : description;
+  let merchant = parts.length >= 3 ? parts[2] : parts[0];
 
   return merchant?.trim();
 }
 
 function normalizeMerchant(merchant: string) {
+  // Check name map FIRST on raw input before any stripping wipes key info
+  const earlyCheck = merchant.toLowerCase().trim();
+  for (const [key, value] of Object.entries(MERCHANT_NAME_MAP)) {
+    if (earlyCheck.includes(key)) return value;
+  }
+
   let cleaned = merchant.toUpperCase();
 
+  // Strip prefixes
   for (const prefix of MERCHANT_PREFIX) {
     if (cleaned.startsWith(prefix)) {
       cleaned = cleaned.slice(prefix.length).trim();
       break;
     }
   }
+
+  // Strip URLs BEFORE replacing dots (e.g. "LYFT.COM", "OPENAI.COM")
+  cleaned = cleaned.replace(/\b\w+\.(COM|NET|ORG|IO)\b/gi, "").trim();
 
   // Replace "." with a space
   cleaned = cleaned.replace(/\./g, " ");
@@ -89,21 +99,34 @@ function normalizeMerchant(merchant: string) {
     cleaned = cleaned.replace(suffixRegex, "").trim();
   }
 
-  // Remove trailing alphanumeric codes (like 032498 or 32njko23j02)
-  cleaned = cleaned.replace(/\s+[\dA-Z]*\d[\dA-Z]*\s*$/gi, "");
+  // Strip phone numbers (e.g. "866-712-7753", "704-817-2500")
+  cleaned = cleaned.replace(/\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b/g, "").trim();
+
+  // Strip trailing city + 2-letter state (e.g. "BOSTON MA", "NEW YORK NY")
+  cleaned = cleaned.replace(/\b[A-Z][A-Z\s]*[A-Z]\s+[A-Z]{2}\s*$/g, "").trim();
+
+  // Strip trailing 4-digit code + optional state (e.g. "1158", "NY 1158")
+  cleaned = cleaned.replace(/\s+\d{4}\s*([A-Z]{2})?\s*$/g, "").trim();
+
+  // Strip remaining trailing alphanumeric store codes (e.g. "#3338", "F7059")
+  cleaned = cleaned.replace(/\s+[\dA-Z]*\d[\dA-Z]*\s*$/gi, "").trim();
 
   // Strip common noise words
   cleaned = cleaned.replace(/\b(POS|PURCHASE|DEBIT|CREDIT|CARD|ONLINE|WEB|MOBILE)\b/gi, "");
 
-  // Collapse spaces again after removals
-  cleaned = cleaned.replace(/\s+/g, " ").trim();
-
   // Take left side of delimiters
   cleaned = (cleaned.split(" - ")[0] ?? "").split(" / ")[0] ?? "";
 
-  return cleaned.trim() || "UNKNOWN";
-}
+  // Final collapse
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
 
+  const finalCheck = cleaned.toLowerCase();
+  for (const [key, value] of Object.entries(MERCHANT_NAME_MAP)) {
+    if (finalCheck.includes(key)) return value;
+  }
+
+  return cleaned || "UNKNOWN";
+}
 
 export default function getClassification(description: string) {
   const rawMerchant = extractMerchant(description);
@@ -116,7 +139,8 @@ export default function getClassification(description: string) {
   if (firstMatch) {
     return {
       merchant: merchant,
-      category: firstMatch.categoryKey,
+      subcategory: firstMatch.subcategory,
+      category: SUBCATEGORY_TO_CATEGORY[firstMatch.subcategory] ?? "misc",
       confidence: firstMatch.confidence
     };
   }
@@ -127,7 +151,8 @@ export default function getClassification(description: string) {
     if (rule.re.test(fullDescription)) {
       return {
         merchant: merchant,
-        category: rule.categoryKey,
+        subcategory: rule.subcategory,
+        category: SUBCATEGORY_TO_CATEGORY[rule.subcategory] ?? "misc",
         confidence: rule.confidence
       };
     }
@@ -135,6 +160,7 @@ export default function getClassification(description: string) {
 
   return {
     merchant: merchant,
+    subcategory: "misc",
     category: "misc",
     confidence: 0
   };

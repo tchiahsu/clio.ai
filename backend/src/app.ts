@@ -17,12 +17,6 @@ app.use(express.json());
 // Parse cookies for auth 
 app.use(cookieParser());
 
-// To Assign a user id since we doing auth last, fake user basically
-// app.use((req, _res, next) => {
-//     (req as any).user = {userId: 1};
-//     next();
-// });
-
 // Send cookies from the browser to the server 
 // currently usingn local host, needs to be updated later 
 app.use(

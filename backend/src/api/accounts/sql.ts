@@ -34,17 +34,24 @@ export async function sqlAccountSummary (pool: Pool, account_id_p: number) {
 /**
  * Add a new account.  
  */
-export async function sqlAddAccount (pool: Pool, user_id_p: number, bank_name_p: string, account_number_p: string, account_type_p: string) {
-    const res = await pool.query(
-        `
-        INSERT INTO accounts (user_id, bank_name, account_number, account_type)
-        VALUES ($1, $2, $3, $4)
-        RETURNING account_id, user_id, bank_name, account_number, account_type
-        `,
-        [user_id_p, bank_name_p, account_number_p, account_type_p]
-    );
-
-    return res.rows[0];
+export async function sqlAddAccount(
+  pool: Pool,
+  user_id_p: number,
+  bank_name_p: string,
+  account_number_p: string,
+  account_type_p: string
+) {
+  const res = await pool.query(
+    `
+    INSERT INTO accounts (user_id, bank_name, account_number, account_type)
+    VALUES ($1, $2, $3, $4)
+    ON CONFLICT (user_id, account_number) DO UPDATE
+      SET bank_name = EXCLUDED.bank_name
+    RETURNING account_id, user_id, bank_name, account_number, account_type
+    `,
+    [user_id_p, bank_name_p, account_number_p, account_type_p]
+  );
+  return res.rows[0];
 }
 
 /**

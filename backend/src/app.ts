@@ -9,31 +9,34 @@ import { accountRouter } from "./api/accounts/routes.js";
 import { chatRouter } from "./api/chat/routes.js";
 import { statementRouter } from "./api/statements/routes.js";
 import authRouter from "./api/auth/routes.js";
+import { requireAuth } from "./middleware/requireAuth.js";
 
 export const app = express();
 
-// Reads raw request body, parses JSON and attaches it to request
 app.use(express.json());
-// Parse cookies for auth 
 app.use(cookieParser());
-
-// Send cookies from the browser to the server 
-// currently usingn local host, needs to be updated later 
+ 
+// CORS origin is env-driven so the same build works in dev and production.
+// In dev, set CORS_ORIGIN=http://localhost:5173 in your .env file.
+const corsOrigin = process.env.CORS_ORIGIN ?? "http://localhost:5173";
+ 
 app.use(
     cors({
-        origin: "http://localhost:5173",
+        origin: corsOrigin,
         credentials: true,
     })
 );
-
-// Mount Routers
+ 
+// Public routes — no session required
 app.use("/auth", authRouter);
-app.use("/dashboard", dashboardRouter);
-app.use("/transaction", transactionRouter);
-app.use("/merchants", merchantsRouter);
-app.use("/categories", categoriesRouter);
-app.use("/accounts", accountRouter);
-app.use("/chat", chatRouter);
-app.use("/statement", statementRouter);
-
+ 
+// Protected routes — requireAuth middleware gates every handler below this line
+app.use("/dashboard", requireAuth, dashboardRouter);
+app.use("/transaction", requireAuth, transactionRouter);
+app.use("/merchants", requireAuth, merchantsRouter);
+app.use("/categories", requireAuth, categoriesRouter);
+app.use("/accounts", requireAuth, accountRouter);
+app.use("/chat", requireAuth, chatRouter);
+app.use("/statement", requireAuth, statementRouter);
+ 
 export default app;

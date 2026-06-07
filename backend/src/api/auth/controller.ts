@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import pool from "../../database.js";
-import { sqlGetUserLogin, sqlCreateUser } from "./sql.js";
-import { createSession, deleteSession } from "./sessionStore.js";
+import { sqlGetUserLogin, sqlCreateUser, sqlGetUserById } from "./sql.js";
+import { createSession, deleteSession, getSession } from "./sessionStore.js";
 import { getSessionCookies } from "./cookies.js";
 
 export async function postLogin(req: Request, res: Response) {
@@ -52,8 +52,6 @@ export async function postLogout(req: Request, res: Response) {
     try {
         const sessionId = req.cookies?.session as string | undefined;
         deleteSession(sessionId);
-
-        // Clear the cookie on the client side too
         res.clearCookie("session", { path: "/" });
         return res.json({ ok: true });
     } catch (err) {
@@ -87,14 +85,10 @@ export async function postRegister(req: Request, res: Response) {
         }
 
         const email = emailInput.trim().toLowerCase();
-
-        // Hash with cost factor 12 — good balance of security and speed
         const passwordHash = await bcrypt.hash(passwordInput, 12);
-
         const user = await sqlCreateUser(pool, email, firstName.trim(), lastName.trim(), passwordHash);
 
         if (!user) {
-            // sqlCreateUser returns null on duplicate email (ON CONFLICT DO NOTHING)
             return res.status(409).json({ error: "An account with that email already exists" });
         }
 
@@ -107,6 +101,30 @@ export async function postRegister(req: Request, res: Response) {
         });
     } catch (err) {
         console.error("postRegister error:", err);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+}
+
+/**
+ * Returns the currently authenticated user.
+ * Used by the frontend on page refresh to check if the session is still valid.
+ * Returns 401 if the session has expired — requireAuth handles that before this runs.
+ */
+export async function getMe(req: Request, res: Response) {
+    try {
+        const userId = (req as any).user?.userId as number;
+        const user = await sqlGetUserById(pool, userId);
+
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        return res.json({
+            ok: true,
+            user: { id: user.user_id, email: user.email, firstName: user.first_name, lastName: user.last_name },
+        });
+    } catch (err) {
+        console.error("getMe error:", err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 }

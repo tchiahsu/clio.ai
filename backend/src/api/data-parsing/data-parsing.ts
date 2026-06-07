@@ -63,7 +63,7 @@ export async function dataParsing(
             userId,
             accountInfo.bank_name,
             accountInfo.account_num,
-            "checking" // default; the statement doesn't reliably carry account type
+            "checking"
         );
         const accountId: number = account.account_id;
 
@@ -86,44 +86,61 @@ export async function dataParsing(
 
         let totalIncome = 0;
         let totalExpenses = 0;
+        let imported = 0;
+        let skipped = 0;
 
         // ── 6. Persist each transaction ──────────────────────────────────────
         for (const tx of transactions) {
-            if (!tx.date || tx.amount === undefined) continue;
-
-            // Upsert merchant (global table — canonical name)
-            let merchantId: number | null = null;
-            if (tx.merchant) {
-                merchantId = await sqlAddMerchant(pool, tx.merchant);
+            if (!tx.date || tx.amount === undefined) {
+                skipped++;
+                continue;
             }
 
-            // Upsert category (per-user table)
-            let categoryId: number | null = null;
-            if (tx.category && tx.subcategory) {
-                const categoryRows = await sqlAddNewCategory(
+            try {
+                // Upsert merchant (global table — canonical name)
+                let merchantId: number | null = null;
+                if (tx.merchant) {
+                    merchantId = await sqlAddMerchant(pool, tx.merchant);
+                }
+
+                // Upsert category (per-user table)
+                let categoryId: number | null = null;
+                if (tx.category && tx.subcategory) {
+                    const categoryRows = await sqlAddNewCategory(
+                        pool,
+                        userId,
+                        tx.category,
+                        tx.subcategory
+                    );
+                    categoryId = categoryRows[0]?.category_id ?? null;
+                }
+
+                await sqlAddTransaction(
                     pool,
                     userId,
-                    tx.category,
-                    tx.subcategory
+                    accountId,
+                    statementId,
+                    tx.date,
+                    tx.raw ?? tx.date,
+                    tx.amount,
+                    merchantId,
+                    categoryId,
+                    tx.confidence ?? 0
                 );
-                categoryId = categoryRows[0]?.category_id ?? null;
+
+                if (tx.amount > 0) totalIncome += tx.amount;
+                else totalExpenses += Math.abs(tx.amount);
+
+                imported++;
+            } catch (txErr) {
+                // Log the bad row and continue — one bad transaction should
+                // never abort the entire statement import.
+                skipped++;
+                console.error(
+                    `[dataParsing] Statement ${statementId}: skipped transaction on ${tx.date} (${tx.raw}):`,
+                    txErr instanceof Error ? txErr.message : txErr
+                );
             }
-
-            await sqlAddTransaction(
-                pool,
-                userId,
-                accountId,
-                statementId,
-                tx.date,
-                tx.raw ?? tx.date,
-                tx.amount,
-                merchantId,
-                categoryId,
-                tx.confidence ?? 0
-            );
-
-            if (tx.amount > 0) totalIncome += tx.amount;
-            else totalExpenses += Math.abs(tx.amount);
         }
 
         // ── 7. Write statement summary ───────────────────────────────────────
@@ -133,7 +150,7 @@ export async function dataParsing(
         await sqlSetStatusComplete(pool, userId, statementId);
 
         console.log(
-            `[dataParsing] Statement ${statementId}: ${transactions.length} transactions imported.`
+            `[dataParsing] Statement ${statementId}: ${imported} imported, ${skipped} skipped.`
         );
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -141,7 +158,6 @@ export async function dataParsing(
         await sqlSetStatusFailed(pool, userId, statementId, message.slice(0, 128));
     } finally {
         // Remove the uploaded PDF from disk regardless of outcome.
-        // The raw file is no longer needed once text has been extracted.
         fs.unlink(filePath, (err) => {
             if (err) console.error(`[dataParsing] Failed to delete file ${filePath}:`, err);
         });

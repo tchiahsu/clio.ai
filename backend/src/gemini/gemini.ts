@@ -7,7 +7,7 @@
  */
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL   = "gemini-2.5-flash";
+const GEMINI_MODEL   = "gemini-2.0-flash";
 const GEMINI_URL     = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -175,8 +175,8 @@ export function formatQueryAnswer(
             let value = row[key];
 
             // Format numbers as currency if they look like amounts
-            if (typeof value === "string" && !isNaN(Number(value))) {
-                const num = Number(value);
+            if (typeof value === "string" && !isNaN(Number(value.replace(/^\$/, "")))) {
+                const num = Number(value.replace(/^\$/, ""));
                 if (key.includes("amount") || key.includes("total") || key.includes("balance") || key.includes("spent") || key.includes("income") || key.includes("expense")) {
                     value = `$${Math.abs(num).toFixed(2)}`;
                 }

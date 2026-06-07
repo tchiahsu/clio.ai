@@ -109,6 +109,7 @@ export async function saveChatMessage(req: Request, res: Response) {
             // Execute with userId always as $1 — this is the security boundary.
             // Gemini's params array contains everything AFTER $1.
             const result = await pool.query(sql, [userId, ...params]);
+            console.log("[Query] rows:", result.rows);
 
             aiMessage = formatQueryAnswer(result.rows, answer_template, empty_message);
         } catch (llmErr) {

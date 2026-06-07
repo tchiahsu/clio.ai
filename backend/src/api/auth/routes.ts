@@ -6,7 +6,7 @@ import { requireAuth } from "../../middleware/requireAuth.js";
 // Limit login and register to 10 attempts per 15 minutes per IP.
 // Prevents brute force attacks on the demo accounts.
 const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
+    windowMs: 1 * 60 * 1000,
     max: 10,
     standardHeaders: true,
     legacyHeaders: false,

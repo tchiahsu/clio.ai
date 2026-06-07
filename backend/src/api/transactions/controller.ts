@@ -1,39 +1,17 @@
 import type { Request, Response } from "express";
 import pool from "../../database.js";
+import { getUserId, toInt } from "../utils.js";
 import { sqlAssertStatementOwned, sqlDashboardTransactionsForStatement } from "../dashboard/sql.js";
 import {
     sqlLatestStatementId,
     sqlAllTransactions,
     sqlGetTransactionDetail,
     sqlPatchTransactionCategory,
-    sqlPatchTransactionMerchant
-} from "../transactions/sql.js";
+    sqlPatchTransactionMerchant,
+} from "./sql.js";
 
-/**
- * Req.query is always a string, so number must be converted into integers.
- */
-function toInt(v: any): number | undefined {
-    if (v === undefined) return undefined;
-    const n = Number(v);
-
-    // Truncate number (round down) if its finite, else its undefined.
-    return Number.isFinite(n) ? Math.trunc(n) : undefined;
-}
-
-/**
- * Gets the current userId (fake user id for now).
- * I tell TS that request has extra properties for user.
- */
-function getUserId(req: Request): number {
-    return (req as any).user?.userId ?? 1;
-}
-
-/**
- * Check if the provided userId is the owner of the given statementId.
- */
 async function checkStatementOwner(res: Response, userId: number, statementId: number) {
     const ok = await sqlAssertStatementOwned(pool, userId, statementId);
-    
     if (!ok) {
         res.status(404).json({ error: "Statement not found" });
         return false;
@@ -42,7 +20,7 @@ async function checkStatementOwner(res: Response, userId: number, statementId: n
 }
 
 /**
- * Gets all the transactions of for the given time period
+ * GET /transaction?scope=latest|statement|all[&statementId=N]
  */
 export async function getTransactionList(req: Request, res: Response) {
     try {
@@ -59,27 +37,29 @@ export async function getTransactionList(req: Request, res: Response) {
 
         if (scope === "statement") {
             if (statementIdParam === undefined) {
-                return res.status(400).json({ error: "statementId required when scope=statement" })
+                return res.status(400).json({ error: "statementId required when scope=statement" });
             }
             statementId = statementIdParam;
         } else {
             statementId = await sqlLatestStatementId(pool, userId);
-            if (statementId === null) return res.status(400).json({ error: "No statements found" });
+            if (statementId === null) {
+                return res.status(404).json({ error: "No statements found" });
+            }
         }
 
         const ownership = await checkStatementOwner(res, userId, statementId);
         if (!ownership) return;
 
         const data = await sqlDashboardTransactionsForStatement(pool, userId, statementId);
-        res.json({ scope: scope === "statement" ? "statement" : "latest", statementId, data })
+        res.json({ scope: scope === "statement" ? "statement" : "latest", statementId, data });
     } catch (err) {
-        console.error("Error getting the transaction list:", err);
+        console.error("getTransactionList error:", err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 }
 
 /**
- * Get the transaction details for a single transaction
+ * GET /transaction/detail?transactionId=N
  */
 export async function getTransactionDetail(req: Request, res: Response) {
     try {
@@ -89,15 +69,18 @@ export async function getTransactionDetail(req: Request, res: Response) {
         if (!transactionId) return res.status(400).json({ error: "transactionId not found" });
 
         const data = await sqlGetTransactionDetail(pool, transactionId, userId);
+
+        if (!data) return res.status(404).json({ error: "Transaction not found" });
+
         res.json({ transactionId, data });
     } catch (err) {
-        console.error("Error getting transaction details:", err);
+        console.error("getTransactionDetail error:", err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 }
 
 /**
- * Change the category name of a transaction (assumes the new cateogry already exists)
+ * PATCH /transaction/category?transactionId=N&categoryId=N
  */
 export async function patchTransactionCategory(req: Request, res: Response) {
     try {
@@ -105,19 +88,22 @@ export async function patchTransactionCategory(req: Request, res: Response) {
         const categoryId = toInt(req.query.categoryId);
         const transactionId = toInt(req.query.transactionId);
 
-        if (!categoryId) return res.status(400).json({ error: "category id not found" });
-        if (!transactionId) return res.status(400).json({ error: "transaction id not found"});
+        if (!categoryId)    return res.status(400).json({ error: "categoryId not found" });
+        if (!transactionId) return res.status(400).json({ error: "transactionId not found" });
 
         const data = await sqlPatchTransactionCategory(pool, userId, categoryId, transactionId);
+
+        if (!data) return res.status(404).json({ error: "Transaction or category not found" });
+
         res.json({ transactionId, categoryId, data });
     } catch (err) {
-        console.error("Error updating transaction category name:", err);
+        console.error("patchTransactionCategory error:", err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 }
 
 /**
- * Change the merchant name of a transaction (assumes the new merchant name already exists)
+ * PATCH /transaction/merchant?transactionId=N&merchantId=N
  */
 export async function patchTransactionMerchant(req: Request, res: Response) {
     try {
@@ -125,13 +111,16 @@ export async function patchTransactionMerchant(req: Request, res: Response) {
         const transactionId = toInt(req.query.transactionId);
         const merchantId = toInt(req.query.merchantId);
 
-        if (!transactionId) return res.status(400).json({ error: "transaction id not found" });
-        if (!merchantId) return res.status(400).json({ error: "merchant id not found" });
+        if (!transactionId) return res.status(400).json({ error: "transactionId not found" });
+        if (!merchantId)    return res.status(400).json({ error: "merchantId not found" });
 
         const data = await sqlPatchTransactionMerchant(pool, userId, transactionId, merchantId);
-        res.json({ transactionId, merchantId, data});
+
+        if (!data) return res.status(404).json({ error: "Transaction or merchant not found" });
+
+        res.json({ transactionId, merchantId, data });
     } catch (err) {
-        console.error("Error updating transaction merchant name:", err);
+        console.error("patchTransactionMerchant error:", err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 }

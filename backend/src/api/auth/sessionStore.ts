@@ -1,46 +1,63 @@
 import crypto from "crypto";
-
-// store session information: id and expiration time
+ 
 type Session = {
     userId: number;
-    expiration: number;
+    expiration: number; // Unix ms timestamp
 };
-
-// map session to user id and expiration time
+ 
 const sessions = new Map<string, Session>();
-
-// set how long session should be valid before it expires 
-const session_time = 1000 * 60 * 60 * 5;
-
-// create a session when user logs in 
-export function createSession(userId: number){
-    // hex the sesion id 
+ 
+// 5-hour session lifetime — must match cookie maxAge in cookies.ts
+const SESSION_TTL_MS = 1000 * 60 * 60 * 5;
+ 
+// Sweep expired sessions from memory every 15 minutes.
+// Without this, long-running servers accumulate stale entries indefinitely.
+const CLEANUP_INTERVAL_MS = 1000 * 60 * 15;
+ 
+const cleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [id, session] of sessions.entries()) {
+        if (now > session.expiration) {
+            sessions.delete(id);
+        }
+    }
+}, CLEANUP_INTERVAL_MS);
+ 
+// Allow the Node.js process to exit cleanly even if this interval is still active.
+cleanupTimer.unref();
+ 
+/**
+ * Create a new session for the given user.
+ * Returns the session ID to be stored in a cookie.
+ */
+export function createSession(userId: number): { sessionId: string; expiration: number } {
     const sessionId = crypto.randomBytes(24).toString("hex");
-    // calculate time to expiration
-    const expiration = Date.now() + session_time;
-    // save sesion information 
-    sessions.set(sessionId, {userId, expiration});
-    return {sessionId, expiration};
+    const expiration = Date.now() + SESSION_TTL_MS;
+    sessions.set(sessionId, { userId, expiration });
+    return { sessionId, expiration };
 }
-
-// called in each session to check if user is logges in 
-export function getSession(sessionId: string | undefined){
+ 
+/**
+ * Look up a session by ID. Returns undefined if missing or expired.
+ * Expired sessions are deleted on first access.
+ */
+export function getSession(sessionId: string | undefined): Session | undefined {
     if (!sessionId) return undefined;
-    // check if user id logged in 
-    const sessionInfo = sessions.get(sessionId);
-    // if ID is not found then user is not logged in 
-    if (!sessionInfo) return undefined;
-    // if session is expired, session gets deleted and user is logged out
-    if (Date.now () > sessionInfo.expiration){
+ 
+    const session = sessions.get(sessionId);
+    if (!session) return undefined;
+ 
+    if (Date.now() > session.expiration) {
         sessions.delete(sessionId);
         return undefined;
     }
-
-    return sessionInfo;
+ 
+    return session;
 }
-
-// completely delete session from memory (in cases where user updates password, etc)
-export function deleteSession (sessionId: string | undefined){
-    if (!sessionId) return;
-    sessions.delete(sessionId);
+ 
+/**
+ * Invalidate a session immediately (logout, password change, etc.).
+ */
+export function deleteSession(sessionId: string | undefined): void {
+    if (sessionId) sessions.delete(sessionId);
 }

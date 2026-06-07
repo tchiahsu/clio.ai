@@ -1,23 +1,47 @@
 import type { Pool } from "pg";
-
+ 
 /**
- * Get log in information from user.   
+ * Fetch login credentials for a user by email.
  */
-export async function sqlGetUserLogin(pool: Pool, email: string){
-    const rest = await pool.query(
+export async function sqlGetUserLogin(pool: Pool, email: string) {
+    const res = await pool.query(
         `
         SELECT user_id, email, password_hash
         FROM users
         WHERE email = $1
-        `, 
+        `,
         [email]
     );
-
-    if (rest.rows.length === 0) return undefined;
-
-    return rest.rows[0] as {
+ 
+    if (res.rows.length === 0) return undefined;
+ 
+    return res.rows[0] as {
         user_id: number;
         email: string;
         password_hash: string;
     };
+}
+ 
+/**
+ * Insert a new user. Returns the created user, or null if the email
+ * already exists (ON CONFLICT DO NOTHING produces 0 rows).
+ */
+export async function sqlCreateUser(
+    pool: Pool,
+    email: string,
+    firstName: string,
+    lastName: string,
+    passwordHash: string
+) {
+    const res = await pool.query(
+        `
+        INSERT INTO users (email, first_name, last_name, password_hash)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (email) DO NOTHING
+        RETURNING user_id, email
+        `,
+        [email, firstName, lastName, passwordHash]
+    );
+ 
+    return res.rows[0] as { user_id: number; email: string } | undefined;
 }

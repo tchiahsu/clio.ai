@@ -4,11 +4,13 @@ import { getUserId, toInt } from "../utils.js";
 import {
     sqlChatHistory,
     sqlChatMessages,
+    sqlRecentChatMessages,
     sqlNewChat,
     sqlNewMessage,
     sqlDeleteChat,
     sqlChangeChatName,
 } from "./sql.js";
+import { generateFinancialQuery, formatQueryAnswer } from "../../gemini/gemini.js";
 
 /**
  * GET /chat/history
@@ -67,8 +69,14 @@ export async function createNewChat(req: Request, res: Response) {
  * POST /chat/message?chatId=N
  * Body: { content: string }
  *
- * Saves the user's message. LLM response is a TODO — stub is left in place
- * with clear comments so it's easy to wire in.
+ * Flow:
+ *   1. Save user message
+ *   2. Fetch last 10 messages for context
+ *   3. Ask Gemini to generate a SQL query
+ *   4. Execute the query safely (SELECT only, user_id enforced)
+ *   5. Format the result as a natural language answer
+ *   6. Save the LLM response
+ *   7. Return both messages to the client
  */
 export async function saveChatMessage(req: Request, res: Response) {
     try {
@@ -80,20 +88,42 @@ export async function saveChatMessage(req: Request, res: Response) {
             return res.status(400).json({ error: "Invalid input" });
         }
 
-        // Save the user's message
+        // ── 1. Save user message ─────────────────────────────────────────────
         const userData = await sqlNewMessage(pool, userId, chatId, "user", content.trim());
         if (!userData) return res.status(404).json({ error: "Chat not found" });
 
-        // ── LLM integration (TODO) ─────────────────────────────────────────
-        // When ready, uncomment and wire in your LLM handler:
-        //
-        // const aiMessage = await runLLM(content, userId);
-        // const aiData = await sqlNewMessage(pool, userId, chatId, "llm", aiMessage);
-        // if (!aiData) return res.status(404).json({ error: "Chat not found" });
-        // return res.json({ chatId, userData, aiData });
-        // ──────────────────────────────────────────────────────────────────
+        // ── 2. Fetch recent chat history for context (last 10 messages) ──────
+        // Exclude the message we just saved since we already have it
+        const recentMessages = await sqlRecentChatMessages(pool, userId, chatId, 10);
+        const historyWithoutLatest = recentMessages.filter(
+            m => m.messages_id !== userData.messages_id
+        );
 
-        res.json({ chatId, userData });
+        // ── 3–5. Generate query, execute, format answer ──────────────────────
+        let aiMessage: string;
+
+        try {
+            const { sql, params, answer_template, empty_message } =
+                await generateFinancialQuery(content.trim(), historyWithoutLatest);
+
+            // Execute with userId always as $1 — this is the security boundary.
+            // Gemini's params array contains everything AFTER $1.
+            const result = await pool.query(sql, [userId, ...params]);
+
+            aiMessage = formatQueryAnswer(result.rows, answer_template, empty_message);
+        } catch (llmErr) {
+            // LLM or query failure should not crash the endpoint.
+            // Save a graceful error message instead so the chat stays usable.
+            console.error("LLM error in saveChatMessage:", llmErr);
+            aiMessage = "I had trouble answering that. Could you rephrase the question? For example: 'How much did I spend on food in January?' or 'What are my top 5 expenses?'";
+        }
+
+        // ── 6. Save LLM response ─────────────────────────────────────────────
+        const aiData = await sqlNewMessage(pool, userId, chatId, "llm", aiMessage);
+        if (!aiData) return res.status(404).json({ error: "Chat not found" });
+
+        // ── 7. Return both messages ──────────────────────────────────────────
+        res.json({ chatId, userData, aiData });
     } catch (err) {
         console.error("saveChatMessage error:", err);
         return res.status(500).json({ error: "Internal Server Error" });

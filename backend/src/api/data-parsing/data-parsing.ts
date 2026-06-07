@@ -14,9 +14,13 @@ import {
 } from "../statements/sql.js";
 import { sqlAddAccount } from "../accounts/sql.js";
 import { sqlUpsertStatementSummary } from "./sql.js";
+import {
+    sqlGetUnclassifiedTransactions,
+    sqlUpdateTransactionClassification,
+} from "./sql.js";
+import { classifyTransactions } from "../../gemini/gemini.js";
 
 // pdf-parse ESM exports the function differently across versions.
-// This handles both: a direct callable module and a { default } shape.
 const pdfParse: (buf: Buffer) => Promise<{ text: string }> =
     (pdfParseModule as any).default ?? (pdfParseModule as any);
 
@@ -29,12 +33,9 @@ async function pdfToText(filePath: string): Promise<string> {
 /**
  * The main PDF → database pipeline.
  *
- * Called asynchronously from the upload endpoint (fire-and-forget).
- * Updates statement status at each stage so the client can poll /statement/status.
- *
  * Stages:
  *   queued → processing → parsed → complete
- *                              ↘ failed  (on any unhandled error)
+ *                              ↘ failed
  */
 export async function dataParsing(
     statementId: number,
@@ -97,13 +98,11 @@ export async function dataParsing(
             }
 
             try {
-                // Upsert merchant (global table — canonical name)
                 let merchantId: number | null = null;
                 if (tx.merchant) {
                     merchantId = await sqlAddMerchant(pool, tx.merchant);
                 }
 
-                // Upsert category (per-user table)
                 let categoryId: number | null = null;
                 if (tx.category && tx.subcategory) {
                     const categoryRows = await sqlAddNewCategory(
@@ -133,8 +132,6 @@ export async function dataParsing(
 
                 imported++;
             } catch (txErr) {
-                // Log the bad row and continue — one bad transaction should
-                // never abort the entire statement import.
                 skipped++;
                 console.error(
                     `[dataParsing] Statement ${statementId}: skipped transaction on ${tx.date} (${tx.raw}):`,
@@ -152,14 +149,103 @@ export async function dataParsing(
         console.log(
             `[dataParsing] Statement ${statementId}: ${imported} imported, ${skipped} skipped.`
         );
+
+        // ── 9. Batch classify unrecognized transactions (Job 2) ──────────────
+        // Runs AFTER the statement is marked complete so the user can see their
+        // data immediately. Unclassified rows get updated in the background.
+        // This is fire-and-forget — failures are logged but don't affect status.
+        batchClassify(statementId, userId).catch((err) => {
+            console.error(`[batchClassify] Statement ${statementId} classification failed:`, err);
+        });
+
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[dataParsing] Statement ${statementId} failed:`, message);
         await sqlSetStatusFailed(pool, userId, statementId, message.slice(0, 128));
     } finally {
-        // Remove the uploaded PDF from disk regardless of outcome.
         fs.unlink(filePath, (err) => {
             if (err) console.error(`[dataParsing] Failed to delete file ${filePath}:`, err);
         });
     }
+}
+
+/**
+ * Job 2 — Batch LLM classifier.
+ *
+ * After the rule engine runs, some transactions remain at confidence=0 (misc).
+ * This function fetches those, sends their descriptions to Gemini in one call,
+ * and updates the database with the classifications.
+ *
+ * Called after sqlSetStatusComplete so the user isn't waiting for this.
+ */
+async function batchClassify(statementId: number, userId: number): Promise<void> {
+    const unclassified = await sqlGetUnclassifiedTransactions(pool, statementId, userId);
+
+    if (unclassified.length === 0) {
+        console.log(`[batchClassify] Statement ${statementId}: no unclassified transactions.`);
+        return;
+    }
+
+    console.log(
+        `[batchClassify] Statement ${statementId}: classifying ${unclassified.length} transactions.`
+    );
+
+    const descriptions = unclassified.map(t => t.description);
+    const classifications = await classifyTransactions(descriptions);
+
+    if (classifications.length === 0) {
+        console.log(`[batchClassify] Statement ${statementId}: Gemini returned no classifications.`);
+        return;
+    }
+
+    let updated = 0;
+
+    for (const result of classifications) {
+        // Find the matching transaction by description
+        const tx = unclassified.find(t => t.description === result.description);
+        if (!tx) continue;
+
+        // Skip if Gemini returned misc with low confidence — not worth updating
+        if (result.category === "misc" && result.confidence <= 0.3) continue;
+
+        try {
+            // Upsert merchant
+            let merchantId: number | null = null;
+            if (result.merchant && result.merchant !== "Unknown") {
+                merchantId = await sqlAddMerchant(pool, result.merchant);
+            }
+
+            // Upsert category
+            let categoryId: number | null = null;
+            if (result.category && result.subcategory) {
+                const categoryRows = await sqlAddNewCategory(
+                    pool,
+                    userId,
+                    result.category,
+                    result.subcategory
+                );
+                categoryId = categoryRows[0]?.category_id ?? null;
+            }
+
+            await sqlUpdateTransactionClassification(
+                pool,
+                tx.transaction_id,
+                userId,
+                merchantId,
+                categoryId,
+                result.confidence
+            );
+
+            updated++;
+        } catch (err) {
+            console.error(
+                `[batchClassify] Failed to update transaction ${tx.transaction_id}:`,
+                err instanceof Error ? err.message : err
+            );
+        }
+    }
+
+    console.log(
+        `[batchClassify] Statement ${statementId}: updated ${updated}/${unclassified.length} transactions.`
+    );
 }

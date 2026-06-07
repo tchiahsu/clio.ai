@@ -106,16 +106,26 @@ export async function saveChatMessage(req: Request, res: Response) {
             const { sql, params, answer_template, empty_message } =
                 await generateFinancialQuery(content.trim(), historyWithoutLatest);
 
-            // Execute with userId always as $1 — this is the security boundary.
-            // Gemini's params array contains everything AFTER $1.
-            const result = await pool.query(sql, [userId, ...params]);
-            console.log("[Query] rows:", result.rows);
             console.log("[Debug] sql:", sql);
             console.log("[Debug] params:", params);
             console.log("[Debug] template:", answer_template);
 
+            // If sql is null, Gemini returned a direct answer (general question)
+            if (!sql) {
+                aiMessage = answer_template;
+            } else {
+                // Safety check — if Gemini hardcoded user_id as a literal instead
+                // of using $1, reject it and let the fallback handle it gracefully.
+                if (!sql.includes("$1")) {
+                    throw new Error("Generated SQL does not use $1 for user_id — rejected");
+                }
 
-            aiMessage = formatQueryAnswer(result.rows, answer_template, empty_message);
+                // Execute with userId always as $1 — this is the security boundary.
+                const result = await pool.query(sql, [userId, ...params]);
+                console.log("[Debug] rows:", JSON.stringify(result.rows));
+
+                aiMessage = formatQueryAnswer(result.rows, answer_template, empty_message);
+            }
         } catch (llmErr) {
             // LLM or query failure should not crash the endpoint.
             // Save a graceful error message instead so the chat stays usable.

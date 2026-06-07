@@ -7,7 +7,7 @@
  */
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL   = "gemini-2.0-flash";
+const GEMINI_MODEL   = "gemini-2.5-flash";
 const GEMINI_URL     = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ async function callGemini(systemPrompt: string, userMessage: string): Promise<st
         ],
         generationConfig: {
             temperature: 0.1,       // Low temperature — we want precise, factual answers
-            maxOutputTokens: 1024,
+            maxOutputTokens: 2048,  // Increased — SQL queries can be verbose
         }
     };
 
@@ -76,45 +76,86 @@ Key relationships:
 - Always filter by user_id = $1 on every table that has user_id
 `;
 
-const CHAT_SYSTEM_PROMPT = `
-You are a personal finance assistant for the Clio app. You help users understand their spending by answering questions about their transactions.
+function buildChatSystemPrompt(): string {
+    const now = new Date();
+    const today = now.toISOString().split("T")[0]; // YYYY-MM-DD
+    const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const currentMonth = monthNames[now.getMonth()];
+    const currentYear = now.getFullYear();
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonth = monthNames[lastMonthDate.getMonth()];
+    const lastMonthYear = lastMonthDate.getFullYear();
 
-The user's transaction data is from 2025. When a user says "January" they mean January 2025. When they say "last month" assume the most recent month with data is February 2025. Always use 2025 for year references unless the user explicitly states otherwise.
+    // Compute date strings for this month and last month
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().split("T")[0];
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0];
 
-You have access to the user's financial data via PostgreSQL. When a user asks a question, you must:
-1. Generate a safe, parameterized PostgreSQL SELECT query to answer it
-2. Return ONLY a valid JSON object — no markdown, no backticks, no explanation outside JSON
+    const prompt = [
+        "You are a personal finance assistant for the Clio app. You help users understand their spending by answering questions about their transactions.",
+        "",
+        `Today's date is ${today}. The current month is ${currentMonth} ${currentYear}. Last month was ${lastMonth} ${lastMonthYear}.`,
+        `When a user says "this month" use the date range ${thisMonthStart} to ${nextMonthStart} (exclusive).`,
+        `When a user says "last month" use the date range ${lastMonthStart} to ${thisMonthStart} (exclusive).`,
+        "The user's transaction data spans 2025. Use the exact dates above for all SQL date filters.",
+        "",
+        "You have access to the user's financial data via PostgreSQL.",
+        "You ONLY answer questions about the user's personal finances, transactions, spending, income, and budgets.",
+        "If the question is not finance-related, set sql to null and set answer_template to a polite message explaining you can only answer financial questions.",
+        "Always return ONLY a valid JSON object — no markdown, no backticks, no explanation outside JSON.",
+        "",
+        "Category system — CRITICAL, always follow these rules:",
+        "- Categories have TWO levels: category_name (broad group) and subcategory_name (specific type)",
+        "- ALWAYS filter on subcategory_name, never on category_name alone for specific spending types",
+        "- Eating out / dining out / restaurants = subcategory_name IN ('dining_out', 'fast_food', 'food_delivery')",
+        "- Food / groceries = subcategory_name = 'groceries'",
+        "- Coffee = subcategory_name = 'coffee'",
+        "- Transport / getting around = subcategory_name IN ('rideshare', 'fuel', 'parking', 'public_transport')",
+        "- Entertainment = subcategory_name IN ('streaming', 'music', 'video_games', 'events', 'entertainment')",
+        "- Bills = subcategory_name IN ('rent', 'utilities', 'internet', 'phone', 'insurance')",
+        "- Shopping = subcategory_name IN ('shopping', 'clothing', 'electronics', 'home_goods', 'home_maintenance')",
+        "- Health = subcategory_name IN ('pharmacy', 'healthcare', 'fitness')",
+        "- Travel = subcategory_name IN ('flights', 'lodging', 'travel')",
+        "- Income / salary / paycheck = subcategory_name IN ('salary', 'income', 'interest')",
+        "- Never invent category values like 'Restaurants', 'Dining', 'Food' — only use the exact subcategory_name values listed above",
+        "",
+        "Rules for SQL generation:",
+        "- ONLY generate SELECT statements — never INSERT, UPDATE, DELETE, DROP, or any DDL",
+        "- Always include WHERE user_id = $1 (or the equivalent join condition) on every table",
+        "- Use COALESCE(mo.display_name, m.merchant_name) with LEFT JOIN merchant_overrides mo ON mo.merchant_id = t.merchant_id AND mo.user_id = $1 when showing merchant names",
+        "- For date filtering: use explicit DATE literals — never use CURRENT_DATE",
+        `- For "this month": transaction_date >= DATE '${thisMonthStart}' AND transaction_date < DATE '${nextMonthStart}'`,
+        `- For "last month": transaction_date >= DATE '${lastMonthStart}' AND transaction_date < DATE '${thisMonthStart}'`,
+        "- For spending questions: SUM expenses as ABS(SUM(amount)) WHERE amount < 0, always alias as \"spent\"",
+        "- For average questions: AVG(ABS(amount)) WHERE amount < 0, always alias as \"average_spent\"",
+        "- For income questions: SUM WHERE amount > 0, always alias as \"total\"",
+        "- For count questions: COUNT(*), always alias as \"count\"",
+        "- For list queries: always include merchant_name and amount columns",
+        "- Limit results to 20 rows unless the user asks for more",
+        "- Always ORDER BY something meaningful (usually transaction_date DESC or ABS(amount) DESC)",
+        "- Column aliases must be simple lowercase words with underscores only — never use $ or special characters",
+        "",
+        "Return this exact JSON shape:",
+        "{",
+        "  \"sql\": \"<parameterized SQL using $1 for user_id, $2+ for other params>\",",
+        "  \"params\": [<additional params after user_id — do NOT include user_id here>],",
+        "  \"answer_template\": \"<use curly brace placeholders like {spent} or {average_spent} — NEVER use dollar sign syntax>\",",
+        "  \"empty_message\": \"<message if query returns no rows>\"",
+        "}",
+        "",
+        SCHEMA_CONTEXT,
+    ].join("\n");
 
-Rules for SQL generation:
-- ONLY generate SELECT statements — never INSERT, UPDATE, DELETE, DROP, or any DDL
-- Always include WHERE user_id = $1 (or the equivalent join condition) on every table
-- Use COALESCE(mo.display_name, m.merchant_name) with LEFT JOIN merchant_overrides mo ON mo.merchant_id = t.merchant_id AND mo.user_id = $1 when showing merchant names
-- For date filtering: use explicit DATE literals like DATE '2025-01-01' — never rely on CURRENT_DATE since it may be wrong
-- For January 2025: transaction_date >= DATE '2025-01-01' AND transaction_date < DATE '2025-02-01'
-- For February 2025: transaction_date >= DATE '2025-02-01' AND transaction_date < DATE '2025-03-01'
-- For spending questions: SUM expenses as ABS(SUM(amount)) WHERE amount < 0, always alias the result as "spent"
-- For income questions: SUM WHERE amount > 0, always alias the result as "total"
-- For list queries: always include merchant_name and amount columns
-- Limit results to 20 rows unless the user asks for more
-- Always ORDER BY something meaningful (usually transaction_date DESC or amount ASC)
-- Column aliases must be simple lowercase words matching the placeholder in answer_template exactly
-
-Return this exact JSON shape:
-{
-  "sql": "<parameterized SQL using $1 for user_id, $2+ for other params>",
-  "params": [<additional params after user_id — do NOT include user_id here>],
-  "answer_template": "<use {column_alias} placeholders that exactly match your SELECT aliases, e.g. 'You spent {spent} on food in January'>",
-  "empty_message": "<message if query returns no rows, e.g. 'No food transactions found'>"
+    return prompt;
 }
 
-${SCHEMA_CONTEXT}
-`.trim();
-
 export type GeminiQueryResult = {
-    sql: string;
+    sql: string | null;
     params: any[];
     answer_template: string;
     empty_message: string;
+    // When sql is null, direct_answer contains the plain text response
+    direct_answer?: string;
 };
 
 /**
@@ -134,13 +175,34 @@ export async function generateFinancialQuery(
 
     const userMessage = `${historyContext}User question: ${question}`;
 
-    const raw = await callGemini(CHAT_SYSTEM_PROMPT, userMessage);
+    const raw = await callGemini(buildChatSystemPrompt(), userMessage);
 
-    // Strip any accidental markdown code fences
-    const cleaned = raw.replace(/```json|```/g, "").trim();
+    // Extract JSON from the response — Gemini sometimes wraps it in markdown
+    // fences or adds explanation text before/after. We find the first { and
+    // last } to extract just the JSON object regardless of surrounding text.
+    let cleaned = raw.replace(/```json|```/g, "").trim();
+
+    const firstBrace = cleaned.indexOf("{");
+    const lastBrace = cleaned.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+    }
+
+    // Replace any ${...} template literals the LLM might have used with {..}
+    cleaned = cleaned.replace(/\$\{(\w+)\}/g, "{$1}");
 
     try {
         const parsed = JSON.parse(cleaned) as GeminiQueryResult;
+
+        // If sql is null, Gemini returned a direct text answer (non-financial question)
+        if (!parsed.sql) {
+            return {
+                sql: null,
+                params: [],
+                answer_template: parsed.answer_template ?? parsed.direct_answer ?? "I'm not sure how to answer that. Try asking about your spending, income, or transactions.",
+                empty_message: "",
+            };
+        }
 
         // Safety check — never allow non-SELECT queries
         const sqlUpper = parsed.sql.trim().toUpperCase();
@@ -155,6 +217,36 @@ export async function generateFinancialQuery(
 }
 
 /**
+ * Format a raw value from a query row into a human-readable string.
+ * Handles currency, dates, and plain values.
+ */
+function formatValue(key: string, value: any): string {
+    if (value === null || value === undefined) return "N/A";
+
+    // Format dates — PostgreSQL returns ISO strings like 2025-01-02T05:00:00.000Z
+    if (value instanceof Date || (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value))) {
+        const d = new Date(value);
+        if (!isNaN(d.getTime())) {
+            return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+            // e.g. "January 2, 2025"
+        }
+    }
+
+    // Format numbers as currency if the column name suggests a monetary value
+    const str = String(value).replace(/^\$/, "");
+    if (!isNaN(Number(str))) {
+        const num = Number(str);
+        if (key.includes("amount") || key.includes("total") || key.includes("balance") ||
+            key.includes("spent") || key.includes("income") || key.includes("expense") ||
+            key.includes("average")) {
+            return `$${Math.abs(num).toFixed(2)}`;
+        }
+    }
+
+    return String(value);
+}
+
+/**
  * Format raw query results into a human-readable answer using the template.
  * Handles common result shapes: single aggregate, list of rows, empty.
  */
@@ -165,49 +257,28 @@ export function formatQueryAnswer(
 ): string {
     if (rows.length === 0) return emptyMessage;
 
-    // Single row with a single value (e.g. SUM, COUNT)
+    // Single row (e.g. SUM, COUNT, AVG)
     if (rows.length === 1) {
         const row = rows[0];
         const keys = Object.keys(row);
 
         let answer = answerTemplate;
         for (const key of keys) {
-            let value = row[key];
-
-            // Format numbers as currency if they look like amounts
-            if (typeof value === "string" && !isNaN(Number(value.replace(/^\$/, "")))) {
-                const num = Number(value.replace(/^\$/, ""));
-                if (key.includes("amount") || key.includes("total") || key.includes("balance") || key.includes("spent") || key.includes("income") || key.includes("expense")) {
-                    value = `$${Math.abs(num).toFixed(2)}`;
-                }
-            }
-
-            answer = answer.replace(`{${key}}`, String(value ?? "N/A"));
+            answer = answer.replace(`{${key}}`, formatValue(key, row[key]));
         }
 
-        // If the template still has unreplaced placeholders, fall back to a
-        // plain description of the first row's values
+        // If the template still has unreplaced placeholders, fall back to
+        // a plain description of the row's values
         if (answer.includes("{")) {
-            answer = keys.map(k => {
-                const v = row[k];
-                const num = Number(v);
-                if (!isNaN(num) && v !== null) return `$${Math.abs(num).toFixed(2)}`;
-                return String(v ?? "N/A");
-            }).join(", ");
+            answer = keys.map(k => formatValue(k, row[k])).join(", ");
         }
 
         return answer;
     }
 
-    // Multiple rows — build a list
+    // Multiple rows — build a numbered list
     return rows.map((row, i) => {
-        const parts = Object.entries(row).map(([k, v]) => {
-            const num = Number(v);
-            if (!isNaN(num) && v !== null && (k.includes("amount") || k.includes("total") || k.includes("spent"))) {
-                return `$${Math.abs(num).toFixed(2)}`;
-            }
-            return String(v ?? "N/A");
-        });
+        const parts = Object.entries(row).map(([k, v]) => formatValue(k, v));
         return `${i + 1}. ${parts.join(" — ")}`;
     }).join("\n");
 }

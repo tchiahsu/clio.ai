@@ -110,6 +110,10 @@ export async function saveChatMessage(req: Request, res: Response) {
             // Gemini's params array contains everything AFTER $1.
             const result = await pool.query(sql, [userId, ...params]);
             console.log("[Query] rows:", result.rows);
+            console.log("[Debug] sql:", sql);
+            console.log("[Debug] params:", params);
+            console.log("[Debug] template:", answer_template);
+
 
             aiMessage = formatQueryAnswer(result.rows, answer_template, empty_message);
         } catch (llmErr) {

@@ -15,12 +15,11 @@ TRUNCATE
 RESTART IDENTITY CASCADE;
  
 -- =========================
--- USERS (3)
+-- USERS (2)
 -- =========================
 INSERT INTO users (email, first_name, last_name, password_hash) VALUES
-('tony@example.com', 'Tony', 'Hsu',    '$2b$10$oM7G/7B1HLktlU3KlrA4v.utlA0QxuEoCuYIdtkq38nBdTXaoDbJC'),
-('alex@example.com', 'Alex', 'Rivera', '$2b$10$oM7G/7B1HLktlU3KlrA4v.utlA0QxuEoCuYIdtkq38nBdTXaoDbJC'),
-('maya@example.com', 'Maya', 'Chen',   '$2b$10$oM7G/7B1HLktlU3KlrA4v.utlA0QxuEoCuYIdtkq38nBdTXaoDbJC');
+('demo@example.com', 'Demo', 'User',    '$2b$10$oM7G/7B1HLktlU3KlrA4v.utlA0QxuEoCuYIdtkq38nBdTXaoDbJC'),
+('admin@example.com', 'Admin', 'User',   '$2b$10$oM7G/7B1HLktlU3KlrA4v.utlA0QxuEoCuYIdtkq38nBdTXaoDbJC');
  
 -- =========================
 -- ACCOUNTS (2 per user = 6)

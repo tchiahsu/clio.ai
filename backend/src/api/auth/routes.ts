@@ -1,8 +1,11 @@
 import { Router } from "express";
-import { postLogin } from "./controller.js";
-
-const router = Router();
-
-router.post("/login", postLogin);
-
-export default router;
+import { postLogin, postLogout, postRegister } from "./controller.js";
+import { requireAuth } from "../../middleware/requireAuth.js";
+ 
+const authRouter = Router();
+ 
+authRouter.post("/login", postLogin);
+authRouter.post("/register", postRegister);
+authRouter.post("/logout", requireAuth, postLogout);
+ 
+export default authRouter;

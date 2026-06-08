@@ -16,24 +16,7 @@ Clio is a full-stack personal finance dashboard that parses bank statements, aut
 
 ---
 
-## Tech Stack
-
-**Backend**
-- Node.js + TypeScript (ESM)
-- Express.js
-- PostgreSQL
-- Google Gemini 2.5 Flash
-
-**Key Libraries**
-- `pg` — PostgreSQL client
-- `bcryptjs` — Password hashing
-- `multer` — PDF file uploads
-- `pdf-parse` — PDF text extraction
-- `express-rate-limit` — Auth brute force protection
-
----
-
-## Getting Started (Backend)
+## Getting Backend Started
 
 ### Prerequisites
 
@@ -100,7 +83,7 @@ PostgreSQL connection verified successfully
 
 ---
 
-## Frontend Setup
+## Getting Frontend Running
 
 ```bash
 # change directory into 'frontend'
@@ -131,6 +114,13 @@ The frontend will now be running at: **`http://localhost:5173`**
 | Chat | `/chat` | AI-powered financial Q&A |
 
 All endpoints except `/auth/login` and `/auth/register` require authentication via session cookie.
+
+**Key Libraries**
+- `pg` — PostgreSQL client
+- `bcryptjs` — Password hashing
+- `multer` — PDF file uploads
+- `pdf-parse` — PDF text extraction
+- `express-rate-limit` — Auth brute force protection
 
 ---
 
@@ -186,35 +176,3 @@ Each user has multiple bank accounts, statements, and transactions pre-populated
 | `NODE_ENV` | No | `development` or `production` |
 | `CORS_ORIGIN` | No | Frontend URL for CORS (default: http://localhost:5173) |
 | `GEMINI_API_KEY` | Yes | Google Gemini API key |
-
----
-
-## Project Structure
-
-```
-backend/
-├── src/
-│   ├── api/
-│   │   ├── accounts/
-│   │   ├── auth/
-│   │   ├── categories/
-│   │   ├── chat/
-│   │   ├── dashboard/
-│   │   ├── data-parsing/
-│   │   ├── merchants/
-│   │   ├── statements/
-│   │   └── transactions/
-│   ├── llm/
-│   │   └── gemini.ts
-│   ├── middleware/
-│   │   └── requireAuth.ts
-│   ├── app.ts
-│   ├── database.ts
-│   └── server.ts
-├── migrations/
-├── schema.sql
-├── seed.sql
-└── uploads/
-```
-
-Each feature module follows a three-layer pattern: `routes.ts` → `*.controller.ts` → `sql.ts`.

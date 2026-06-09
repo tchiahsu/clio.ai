@@ -51,21 +51,29 @@
   --sidebar-accent-foreground: oklch(0.214 0.009 43.1);
   --sidebar-border: oklch(0.922 0.005 34.3);
   --sidebar-ring: oklch(0.714 0.014 41.2);
+  --clio-glass: oklch(1 0 0 / 0.55);
+  --clio-glass-border: oklch(1 0 0 / 0.65);
+  --glass-inset: oklch(1 0 0 / 0.5);
+  --clio-primary: oklch(0.22 0.03 255);
+  --clio-primary-foreground: oklch(0.98 0.005 240);
+  --clio-foreground-70: oklch(0.18 0.02 250 / 0.7);
+  --clio-muted-foreground: oklch(0.5 0.02 250);
+  --clio-success: oklch(0.65 0.15 155);
+  --clio-success-bg: oklch(0.65 0.15 155 / 0.15);
+
 }
 
 a {
   font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+  color: inherit;
+  text-decoration: none;
 }
-a:hover {
-  color: #535bf2;
-}
+/* a:hover {
+  color: inherit;
+} */
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
 }
@@ -76,18 +84,12 @@ h1 {
 }
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
+  font-family: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
 }
 button:focus,
 button:focus-visible {
@@ -100,10 +102,7 @@ button:focus-visible {
     background-color: #ffffff;
   }
   a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
+    color: inherit;
   }
 }
 
@@ -182,6 +181,15 @@ button:focus-visible {
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --color-clio-primary: var(--clio-primary);
+  --color-clio-primary-foreground: var(--clio-primary-foreground);
+  --color-clio-glass: var(--clio-glass);
+  --color-clio-glass-border: var(--clio-glass-border);
+  --color-clio-muted-foreground: var(--clio-muted-foreground);
+  --color-clio-foreground-70: var(--clio-foreground-70);
+  --color-clio-success: var(--clio-success);
+  --color-clio-success-bg: var(--clio-success-bg);
+  --color-glass-inset: var(--glass-inset);
 }
 
 @layer base {

@@ -1,10 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import ShellLayout from './components/layout/ShellLayout';
-import Dashboard from './Dashboard';
-import Accounts from './Accounts';
-import Transactions from './Transactions';
-import Budgets from './Budget';
-import Statements from './Statements';
+import Dashboard from './components/features/Dashboard';
+import Accounts from './components/features/Accounts';
+import Transactions from './components/features/Transactions';
+import Budgets from './components/features/Budget';
+import Statements from './components/features/Statements';
+import Categories from './components/features/Categories';
 import './index.css';
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/budgets" element={<Budgets />} />
           <Route path="/statements" element={<Statements />} />
+          <Route path="/categories" element={<Categories />} />
         </Routes>
       </ShellLayout>
     </BrowserRouter>

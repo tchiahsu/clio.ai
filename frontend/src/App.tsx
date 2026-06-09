@@ -5,6 +5,7 @@ import Accounts from './components/features/Accounts';
 import Transactions from './components/features/Transactions';
 import Budgets from './components/features/Budget';
 import Statements from './components/features/Statements';
+import Categories from './components/features/Categories';
 import './index.css';
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/budgets" element={<Budgets />} />
           <Route path="/statements" element={<Statements />} />
+          <Route path="/categories" element={<Categories />} />
         </Routes>
       </ShellLayout>
     </BrowserRouter>

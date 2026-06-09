@@ -11,6 +11,7 @@ export default function ShellLayout({ children }: ShellLayoutProps) {
       <main className="flex-1">
         {children}
       </main>
+      <div>hello</div>
     </div>
   );
 }

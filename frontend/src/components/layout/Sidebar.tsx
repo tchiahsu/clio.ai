@@ -20,7 +20,7 @@ const dummyStatements = [
 
 export default function Sidebar() {
   return (
-    <div className="w-[280px] self-stretch rounded-2xl p-4 flex flex-col gap-1
+    <div className="w-70 self-stretch rounded-2xl p-4 flex flex-col gap-1
       bg-clio-glass border border-clio-glass-border">
 
       <div className="flex items-center gap-4 px-2 mb-6">
@@ -61,7 +61,7 @@ export default function Sidebar() {
           Chats
         </div>
         <button
-          className="flex items-center gap-1 rounded-full px-4 min-w-[60px] justify-center font-semibold"
+          className="flex items-center gap-1 rounded-full px-4 min-w-15 justify-center font-semibold"
           style={{ backgroundColor: '#1a1f36', color: '#f8f9fc', fontSize: '11px', padding: '4px 6px' }}
         >
           <LuPlus size={12} /> New
@@ -73,7 +73,7 @@ export default function Sidebar() {
           Statements
         </span>
         <button
-          className="flex items-center gap-1 rounded-full px-4 py-4 min-w-[70px] justify-center font-semibold"
+          className="flex items-center gap-1 rounded-full px-4 py-4 min-w-17.5 justify-center font-semibold"
           style={{ backgroundColor: '#1a1f36', color: '#f8f9fc', fontSize: '11px', padding: '4px 6px' }}
         >
           <LuUpload size={12} /> Upload

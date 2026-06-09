@@ -7,7 +7,7 @@ interface ShellLayoutProps {
 
 export default function ShellLayout({ children }: ShellLayoutProps) {
   return (
-    <div className="flex min-h-screen bg-[#EEF2FA] p-7 gap-5">
+    <div className="flex h-screen bg-[#EEF2FA] p-7 gap-5">
       <Sidebar />
       <main className="flex-1 bg-white rounded-2xl p-8 min-h-full">
         {children ?? <Outlet />}

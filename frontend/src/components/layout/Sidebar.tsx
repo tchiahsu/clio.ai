@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { MdOutlineDashboard } from "react-icons/md";
 import { LuWallet, LuArrowLeftRight, LuTarget, LuFileText, LuPlus, LuUpload, LuSparkles, LuMessageSquare } from "react-icons/lu";
 import { RiPieChartLine } from "react-icons/ri";
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 
 const navItems = [
   { name: 'Dashboard', path: '/dashboard', icon: <MdOutlineDashboard /> },
@@ -20,7 +20,7 @@ const dummyStatements = [
 ];
 
 export default function Sidebar() {
-
+  const [menuOpen, setMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
@@ -122,25 +122,62 @@ export default function Sidebar() {
 
       </div>
 
-      {/* Mobile bottom bar */}
-      <div className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-3 py-2 rounded-2xl bg-clio-glass border border-clio-glass-border backdrop-blur-xl shadow-lg">
-        {navItems.map(({ name, path, icon }) => (
-          <NavLink
-            key={path}
-            to={path}
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-1 px-3 py-2 rounded-xl text-[10px]
-              no-underline transition-all duration-200
-              ${isActive
-                ? 'text-clio-primary'
-                : 'text-[#757a8a]'
-              }`
-            }
-          >
-            <span className="text-[20px]">{icon}</span>
-            {name}
-          </NavLink>
-        ))}
+      {/* Hamburger mobile button — fixed bottom right */}
+      <div className="md:hidden fixed bottom-4 right-4 z-50 bg-white border rounded-2xl">
+
+        {/* Expanded menu — grows upward */}
+        {menuOpen && (
+          <div className="absolute bottom-14 right-0
+            bg-white border border-gray-100
+            rounded-2xl shadow-lg p-2 flex flex-col gap-1 w-44">
+
+            {navItems.map(({ name, path, icon }) => (
+              <NavLink
+                key={path}
+                to={path}
+                onClick={() => setMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2 rounded-xl text-[13px]
+                  no-underline transition-all duration-200
+                  ${isActive ? 'bg-gray-200 text-gray-900' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700'}`
+                }
+              >
+                <span className="text-[18px]">{icon}</span>
+                {name}
+              </NavLink>
+            ))}
+
+            <div className="h-px bg-gray-100 mx-2 my-1" />
+            
+            <button
+              className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-400 hover:bg-gray-50 hover:text-gray-700 w-full text-left"
+              onClick={() => { fileInputRef.current?.click(); setMenuOpen(false); }}
+            >
+              <LuUpload size={16} />
+              <span className="text-[13px]">Upload Statement</span>
+            </button>
+
+            <button
+              className="flex items-center gap-3 px-3 py-2 mt-1 rounded-xl text-[13px] text-gray-400 hover:bg-gray-50 hover:text-gray-700 w-full text-left"
+              onClick={() => setMenuOpen(false)}
+            >
+              <LuMessageSquare size={16} />
+              <span className="text-[13px]">New Chat</span>
+            </button>
+          </div>
+        )}
+
+        {/* Hamburger button */}
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
+          className="w-12 h-12 rounded-2xl flex flex-col items-center justify-center gap-1.5
+            bg-white shadow-lg"
+        >
+          <span className={`block w-5 h-0.5 bg-gray-500 transition-all duration-200 ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
+          <span className={`block w-5 h-0.5 bg-gray-500 transition-all duration-200 ${menuOpen ? 'opacity-0' : ''}`} />
+          <span className={`block w-5 h-0.5 bg-gray-500 transition-all duration-200 ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+        </button>
+
       </div>
     </>
   )

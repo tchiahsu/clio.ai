@@ -190,7 +190,14 @@ button:focus-visible {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    min-height: 100vh;
+    background-color: #eef2fa;
+    background-image:
+      radial-gradient(ellipse 30% 25% at 10% 15%, #ccdcf5 0%, transparent 100%),
+      radial-gradient(ellipse 25% 20% at 88% 8%, #d2e2f7 0%, transparent 100%),
+      radial-gradient(ellipse 28% 24% at 80% 92%, #c8d8f4 0%, transparent 100%),
+      radial-gradient(ellipse 22% 20% at 5% 82%, #d5e4f8 0%, transparent 100%);
   }
   html {
     @apply font-sans;

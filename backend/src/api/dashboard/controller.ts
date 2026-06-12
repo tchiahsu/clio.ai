@@ -7,6 +7,7 @@ import {
     sqlDashboardSummaryForStatement,
     sqlDashboardTransactionsForStatement,
     sqlBudgetOverview,
+    sqlDashboardDailyTotals,
 } from "./sql.js";
 
 async function checkStatementOwner(res: Response, userId: number, statementId: number) {
@@ -96,5 +97,23 @@ export async function getBudgetOverview(req: Request, res: Response) {
     } catch (err) {
         console.error("getBudgetOverview error:", err);
         return res.status(500).json({ error: "Internal Server Error" });
+    }
+}
+
+/**
+ * GET /dashboard/daily?statementId=N
+ */
+export async function getDashboardDailyTotals(req: Request, res: Response) {
+    try {
+        const userId = getUserId(req)
+        const statementId = toInt(req.query.statementId)
+        if (!statementId) return res.status(400).json({ error: "statementId not found" })
+        const ownership = await checkStatementOwner(res, userId, statementId)
+        if (!ownership) return
+        const data = await sqlDashboardDailyTotals(pool, userId, statementId)
+        res.json({ statementId, data })
+    } catch (err) {
+        console.error("getDashboardDailyTotals error:", err)
+        return res.status(500).json({ error: "Internal Server Error" })
     }
 }

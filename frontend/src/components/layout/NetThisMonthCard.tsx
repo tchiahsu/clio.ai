@@ -88,7 +88,7 @@ export default function NetThisMonthCard({ statementId, accountId }: NetThisMont
   }
 
   if (isLoading) return (
-    <div className="bg-white rounded-2xl p-6 flex items-center justify-center h-[280px]">
+    <div className="bg-white rounded-2xl p-6 flex items-center justify-center h-70">
       <p className="text-sm text-gray-400">Loading...</p>
     </div>
   )

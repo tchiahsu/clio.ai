@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { StatementProvider } from './context/StatementContext';
 import ShellLayout from './components/layout/ShellLayout';
 import Dashboard from './components/features/Dashboard';
 import Accounts from './components/features/Accounts';
@@ -11,17 +12,19 @@ import './index.css';
 function App() {
   return (
     <BrowserRouter>
-      <ShellLayout>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/accounts" element={<Accounts />} />
-          <Route path="/transactions" element={<Transactions />} />
-          <Route path="/budgets" element={<Budgets />} />
-          <Route path="/statements" element={<Statements />} />
-          <Route path="/categories" element={<Categories />} />
-        </Routes>
-      </ShellLayout>
+      <StatementProvider>
+        <ShellLayout>
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/accounts" element={<Accounts />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/budgets" element={<Budgets />} />
+            <Route path="/statements" element={<Statements />} />
+            <Route path="/categories" element={<Categories />} />
+          </Routes>
+        </ShellLayout>
+      </StatementProvider>
     </BrowserRouter>
   );
 }

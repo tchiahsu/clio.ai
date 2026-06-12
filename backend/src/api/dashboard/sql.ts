@@ -74,6 +74,27 @@ export async function sqlDashboardTransactionsForStatement(pool: Pool, userId: n
 }
 
 /**
+ * Daily income and spending totals for a statement.
+ * Used for the Net This Month line chart in dashboard.
+ */
+export async function sqlDashboardDailyTotals(pool: Pool, userId: number, statementId: number) {
+    const res = await pool.query(
+        `
+        SELECT 
+            transaction_date,
+            COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS daily_income,
+            COALESCE(SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END), 0) AS daily_spending
+        FROM transactions
+        WHERE user_id = $1 AND statement_id = $2
+        GROUP BY transaction_date
+        ORDER BY transaction_date ASC
+        `,
+        [userId, statementId]
+    )
+    return res.rows
+}
+
+/**
  * Get budget overview: total income, spending, savings. 
  */
 export async function sqlBudgetOverview (pool: Pool, userId: number, accountId: number) {

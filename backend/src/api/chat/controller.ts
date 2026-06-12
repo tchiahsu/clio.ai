@@ -27,6 +27,20 @@ export async function getChatHistory(req: Request, res: Response) {
 }
 
 /**
+ * GET /chat/recent
+ */
+export async function getRecentChats(req: Request, res: Response) {
+    try {
+        const userId = getUserId(req);
+        const data = await sqlChatHistory(pool, userId);
+        res.json({ userId, data: data.slice(0, 3) });
+    } catch (err) {
+        console.error("getRecentChats error:", err);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+}
+
+/**
  * GET /chat/messages?chatId=N
  */
 export async function getChatMessages(req: Request, res: Response) {

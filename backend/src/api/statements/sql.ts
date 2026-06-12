@@ -5,7 +5,7 @@ export async function sqlStatementList(pool: Pool, userId: number, limit?: numbe
     const hasLimit = limit != null;
     const res = await pool.query(
         `
-        SELECT s.statement_id, s.file_name, s.period_end, s.current_status,
+        SELECT s.statement_id, s.account_id, s.file_name, s.period_end, s.current_status,
                a.bank_name, a.account_number, a.account_type
         FROM statements s
         JOIN accounts a ON s.account_id = a.account_id

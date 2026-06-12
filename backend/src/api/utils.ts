@@ -15,6 +15,8 @@ export function toInt(v: any): number | undefined {
  * Throws if missing — callers should only invoke this after requireAuth middleware.
  */
 export function getUserId(req: Request): number {
+    return 1 // DELETE THIS LATER TOO! WE ARE HARDOCDING USER SINCE NO LOGIN YET
+
     const id = (req as any).user?.userId;
     if (!id) throw new Error("getUserId called on unauthenticated request");
     return id;

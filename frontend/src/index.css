@@ -63,21 +63,6 @@
 
 }
 
-a {
-  font-weight: 500;
-  text-decoration: none;
-}
-
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
 
 button {
   cursor: pointer;
@@ -90,13 +75,6 @@ button {
 button:focus,
 button:focus-visible {
   outline: none;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
 }
 
 .dark {

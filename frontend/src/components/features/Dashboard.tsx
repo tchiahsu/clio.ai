@@ -6,6 +6,7 @@ import CategoryRow from '../layout/CategoryRow'
 import NetThisMonthCard from '../layout/NetThisMonthCard'
 import { useStatements } from '../../context/StatementContext'
 import { useNavigate } from 'react-router-dom'
+import { BsBank2 } from 'react-icons/bs'
 
 interface DashboardSummary {
   total_income: number
@@ -31,8 +32,18 @@ export default function Dashboard() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [categories, setCategories] = useState<CategorySpend[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [user, setUser] = useState<{ firstName: string; email: string } | null>(null)
 
   const activeStatement = statements.find(s => s.statement_id === selectedId)
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(r => r.json())
+      .then(data => { if (data.ok) setUser(data.user) })
+      .catch(err => console.error('Failed to fetch user', err))
+  }, [])
+
+  const displayName = !user || user.email === 'demo@clio.ai' ? 'Guest' : user.firstName
 
   useEffect(() => {
     if (!selectedId) return
@@ -73,15 +84,20 @@ export default function Dashboard() {
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[12px] uppercase tracking-widest text-gray-400">Welcome back</p>
-          <h1 className="text-4xl font-bold text-gray-900">Hello, Tony</h1>
+          <h1 className="text-4xl font-bold text-gray-900">Hello, {displayName}</h1>
         </div>
         <div className="flex items-center gap-3">
           {activeStatement && (
-            <div
-              className="text-[13px] text-gray-600 bg-clio-glass border border-gray-200 rounded-xl px-3 py-2 shadow-sm"
-              style={{ height: '42px', display: 'flex', alignItems: 'center' }}
-            >
-              {formatLabel(activeStatement)}
+            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-white shadow-sm"
+              style={{ background: 'linear-gradient(135deg, var(--clio-glass) 0%, rgba(255,255,255,0.7) 100%)' }}>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: 'var(--clio-primary)', color: 'var(--clio-primary-foreground)' }}>
+                <BsBank2 size={14} />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-widest text-gray-400 leading-none mb-0.5">Statement</p>
+                <p className="text-[13px] font-semibold text-gray-800 leading-tight">{formatLabel(activeStatement)}</p>
+              </div>
             </div>
           )}
         </div>

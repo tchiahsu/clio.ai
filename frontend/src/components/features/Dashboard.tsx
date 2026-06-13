@@ -6,7 +6,7 @@ import CategoryRow from '../layout/CategoryRow'
 import NetThisMonthCard from '../layout/NetThisMonthCard'
 import { useStatements } from '../../context/StatementContext'
 import { useNavigate } from 'react-router-dom'
-import { LuUpload } from 'react-icons/lu'
+import { BsBank2 } from 'react-icons/bs'
 
 interface DashboardSummary {
   total_income: number
@@ -27,24 +27,32 @@ function formatLabel(s: { bank_name: string; account_type: string; period_end: s
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { selectedId, activeStatementIds, statements, filter } = useStatements()
+  const { selectedId, statements } = useStatements()
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [categories, setCategories] = useState<CategorySpend[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [user, setUser] = useState<{ firstName: string; email: string } | null>(null)
 
-  const primaryId = filter === 'current' ? selectedId : activeStatementIds[0] ?? null
-  const activeStatement = statements.find(s => s.statement_id === primaryId)
+  const activeStatement = statements.find(s => s.statement_id === selectedId)
 
   useEffect(() => {
-    if (!primaryId) return
+    fetch('/api/auth/me')
+      .then(r => r.json())
+      .then(data => { if (data.ok) setUser(data.user) })
+      .catch(err => console.error('Failed to fetch user', err))
+  }, [])
 
+  const displayName = !user || user.email === 'demo@clio.ai' ? 'Guest' : user.firstName
+
+  useEffect(() => {
+    if (!selectedId) return
     const fetchDashboardData = async () => {
       setIsLoading(true)
       try {
         const [summaryRes, categoriesRes] = await Promise.all([
-          fetch(`/api/dashboard/totals?statementId=${primaryId}`),
-          fetch(`/api/dashboard/categories?statementId=${primaryId}`),
+          fetch(`/api/dashboard/totals?statementId=${selectedId}`),
+          fetch(`/api/dashboard/categories?statementId=${selectedId}`),
         ])
         const summaryData = await summaryRes.json()
         const categoriesData = await categoriesRes.json()
@@ -56,27 +64,18 @@ export default function Dashboard() {
         setIsLoading(false)
       }
     }
-
     fetchDashboardData()
-  }, [primaryId])
+  }, [selectedId])
 
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
   const categoryColors = [
-    '#ef4444',  // red
-    '#ec4899',  // pink
-    '#f97316',  // orange
-    '#3b82f6',  // blue
-    '#22c55e',  // green
-    '#eab308',  // yellow
-    '#06b6d4',  // cyan
-    '#92400e',  // brown
-    '#1a1a1a',  // black
-    '#a855f7',  // purple
+    '#ef4444', '#ec4899', '#f97316', '#3b82f6',
+    '#22c55e', '#eab308', '#06b6d4', '#92400e',
+    '#1a1a1a', '#a855f7',
   ]
 
-  // TODO: replace with real per-category budget once budgets are wired up
   const maxSpent = Math.max(...categories.map(c => Number(c.spent)), 1) * 1.1
 
   return (
@@ -85,26 +84,22 @@ export default function Dashboard() {
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[12px] uppercase tracking-widest text-gray-400">Welcome back</p>
-          <h1 className="text-4xl font-bold text-gray-900">Hello, Tony</h1>
+          <h1 className="text-4xl font-bold text-gray-900">Hello, {displayName}</h1>
         </div>
         <div className="flex items-center gap-3">
           {activeStatement && (
-            <div
-              className="text-[13px] text-gray-600 bg-clio-glass border border-gray-200 rounded-xl px-3 py-2 shadow-sm"
-              style={{ height: '42px', display: 'flex', alignItems: 'center' }}
-            >
-              {formatLabel(activeStatement)}
+            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-white shadow-sm"
+              style={{ background: 'linear-gradient(135deg, var(--clio-glass) 0%, rgba(255,255,255,0.7) 100%)' }}>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: 'var(--clio-primary)', color: 'var(--clio-primary-foreground)' }}>
+                <BsBank2 size={14} />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-widest text-gray-400 leading-none mb-0.5">Statement</p>
+                <p className="text-[13px] font-semibold text-gray-800 leading-tight">{formatLabel(activeStatement)}</p>
+              </div>
             </div>
           )}
-          <button
-            className="flex items-center gap-2 rounded-xl px-3 py-2 outline-none cursor-pointer shadow-sm"
-            style={{ padding: '8px 14px', border: '1px solid #e5e7eb', backgroundColor: 'var(--clio-glass)', color: '#4b5563', fontSize: '14px' }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#f9fafb')}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--clio-glass)')}
-            onClick={() => navigate('/statements')}
-          >
-            <LuUpload size={14} /> Upload statement
-          </button>
         </div>
       </div>
 
@@ -114,14 +109,8 @@ export default function Dashboard() {
         <div className="text-sm text-gray-400">Loading…</div>
       ) : summary ? (
         <div className="grid grid-cols-2 gap-4">
-          <ContentCard
-            title="Total Income"
-            amount={formatCurrency(summary.total_income)}
-          />
-          <NetThisMonthCard
-            statementId={primaryId!}
-            accountId={activeStatement?.account_id ?? 0}
-          />
+          <ContentCard title="Total Income" amount={formatCurrency(summary.total_income)} />
+          <NetThisMonthCard statementId={selectedId!} accountId={activeStatement?.account_id ?? 0} />
         </div>
       ) : (
         <div className="text-sm text-gray-400">
@@ -132,11 +121,7 @@ export default function Dashboard() {
       )}
 
       {categories.length > 0 && (
-        <Section
-          title="Top Categories"
-          linkText="View All"
-          onLinkClick={() => navigate('/categories')}
-        >
+        <Section title="Top Categories" linkText="View All" onLinkClick={() => navigate('/categories')}>
           <div className="grid grid-cols-2">
             {categories.slice(0, 6).map((c, i) => (
               <CategoryRow

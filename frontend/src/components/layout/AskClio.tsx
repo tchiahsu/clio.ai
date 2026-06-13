@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { LuSparkles, LuArrowUp, LuChevronDown, LuChevronUp } from 'react-icons/lu'
+import { useSearchParams } from "react-router-dom";
+import { LuSparkles, LuArrowUp, LuChevronDown, LuChevronUp, LuPencil } from 'react-icons/lu'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -24,6 +25,7 @@ const SUGGESTED_PROMPTS = [
 ]
 
 export default function AskClio() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [isExpanded, setIsExpanded] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<Message[]>([
@@ -35,13 +37,82 @@ export default function AskClio() {
   const [isLoading, setIsLoading] = useState(false)
   const [recentChats, setRecentChats] = useState<ChatSession[]>([])
   const [chatId, setChatId] = useState<number | null>(null)
+  const [isNewChat, setIsNewChat] = useState(true)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const fetchRecentChats = async () => {
+      try {
+        const response = await fetch('/api/chat/recent')
+        const result = await response.json()
+        setRecentChats(result.data)
+      } catch {
+        console.error('Failed to fetch recent chats')
+      }
+    }
+    fetchRecentChats()
+  }, [])
+
+  // Reset when the active chat is deleted from sidebar
+  useEffect(() => {
+    const onReset = () => {
+      setChatId(null)
+      setIsNewChat(true)
+      setMessages([{
+        role: 'assistant',
+        content: "I'm your finance assistant. I can break down spending, flag unusual transactions, and help you hit your goals. Ask me anything.",
+      }])
+    }
+    window.addEventListener('chat-reset', onReset)
+    return () => window.removeEventListener('chat-reset', onReset)
+  }, [])
+
+  // Load chat from URL param whenever it changes
+  useEffect(() => {
+    const paramChatId = searchParams.get('chatId')
+    const isNewChat = searchParams.get('newChat')
+
+    if (isNewChat) {
+      // Reset to fresh state without creating a session
+      setChatId(null)
+      setIsNewChat(true)
+      setMessages([{
+        role: 'assistant',
+        content: "I'm your finance assistant. I can break down spending, flag unusual transactions, and help you hit your goals. Ask me anything.",
+      }])
+      setIsExpanded(true)
+      setSearchParams({})
+    } else if (paramChatId) {
+      handleLoadChat(paramChatId)
+      setIsExpanded(true)
+      setSearchParams({})
+    }
+  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleLoadChat = async (loadChatId: string) => {
+    try {
+      const response = await fetch(`/api/chat/messages?chatId=${loadChatId}`)
+      const result = await response.json()
+      const numId = Number(loadChatId)
+      setChatId(numId)
+      setIsNewChat(false)
+      window.dispatchEvent(new CustomEvent('chat-changed', { detail: { chatId: numId } }))
+      const loaded: Message[] = result.data.map((m: ChatMessage) => ({
+        role: (m.speaker_type === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+        content: m.message_content,
+      }))
+      setMessages(loaded)
+      setIsExpanded(true)
+    } catch {
+      console.error('Failed to load chat')
+    }
+  }
 
   const handleSend = async (text?: string) => {
     const query = text ?? input
     if (!query.trim()) return
 
-    setIsExpanded(true) 
+    setIsExpanded(true)
 
     if (text) setInput(text)
 
@@ -61,6 +132,9 @@ export default function AskClio() {
         const sessionData = await sessionRes.json()
         currentChatId = sessionData.data.chat_id
         setChatId(currentChatId)
+        setIsNewChat(false)
+        window.dispatchEvent(new Event('chat-created'))
+        window.dispatchEvent(new CustomEvent('chat-changed', { detail: { chatId: currentChatId } }))
       }
 
       const response = await fetch(`/api/chat/message?chatId=${currentChatId}`, {
@@ -85,34 +159,6 @@ export default function AskClio() {
     }
   }
 
-  useEffect(() => {
-    const fetchRecentChats = async () => {
-      try {
-        const response = await fetch('/api/chat/recent')
-        const result = await response.json()
-        setRecentChats(result.data)
-      } catch {
-        console.error('Failed to fetch recent chats')
-      }
-    }
-    fetchRecentChats()
-  }, [])
-
-  const handleLoadChat = async (loadChatId: string) => {
-    try {
-      const response = await fetch(`/api/chat/messages?chatId=${loadChatId}`)
-      const result = await response.json()
-      setChatId(Number(loadChatId))
-      const loaded: Message[] = result.data.map((m: ChatMessage) => ({
-        role: (m.speaker_type === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-        content: m.message_content,
-      }))
-      setMessages(loaded)
-    } catch {
-      console.error('Failed to load chat')
-    }
-  }
-
   return (
     <div className="bg-clio-glass border-clio-glass-border rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
 
@@ -130,25 +176,45 @@ export default function AskClio() {
             <p className="text-[14px] text-gray-500">Your AI finance assistant</p>
           </div>
         </div>
-        <button
-          className="flex items-center gap-1 rounded-xl shadow-xs"
-          style={{ backgroundColor: 'var(--clio-glass)', border: '1px solid #ffffff', padding: '2px 6px', fontSize: '12px', color: '#6b7280' }}
-          onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#f9fafb')}
-          onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--clio-glass)')}
-          onClick={() => setIsExpanded(prev => !prev)}
-        >
-          {isExpanded
-            ? <><LuChevronUp size={14} /> Collapse</>
-            : <><LuChevronDown size={14} /> Open chat</>
-          }
-        </button>
+        <div className="flex items-center gap-2">
+          {isExpanded && (
+            <button
+              className="flex items-center gap-1 rounded-xl shadow-xs"
+              style={{ backgroundColor: 'var(--clio-glass)', border: '1px solid #ffffff', padding: '2px 6px', fontSize: '12px', color: '#6b7280' }}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--clio-glass)')}
+              onClick={() => {
+                setChatId(null)
+                setMessages([{
+                  role: 'assistant',
+                  content: "I'm your finance assistant. I can break down spending, flag unusual transactions, and help you hit your goals. Ask me anything.",
+                }])
+              }}
+              title="New chat"
+            >
+              <LuPencil size={13} /> New chat
+            </button>
+          )}
+          <button
+            className="flex items-center gap-1 rounded-xl shadow-xs"
+            style={{ backgroundColor: 'var(--clio-glass)', border: '1px solid #ffffff', padding: '2px 6px', fontSize: '12px', color: '#6b7280' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--clio-glass)')}
+            onClick={() => setIsExpanded(prev => !prev)}
+          >
+            {isExpanded
+              ? <><LuChevronUp size={14} /> Collapse</>
+              : <><LuChevronDown size={14} /> Open chat</>
+            }
+          </button>
+        </div>
       </div>
 
       {isExpanded && (
         <div className="flex flex-col gap-2 mb-4">
 
-          {/* Show chats only when no conversation has started */}
-          {messages.length <= 1 && recentChats.map((chat) => (
+          {/* Show recent chats only on a fresh new chat */}
+          {isNewChat && recentChats.map((chat) => (
             <div
               key={chat.chat_id}
               onClick={() => handleLoadChat(chat.chat_id)}

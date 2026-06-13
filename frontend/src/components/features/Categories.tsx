@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { useStatements } from '../../context/StatementContext'
 import { LuChevronDown, LuChevronRight, LuTrendingUp, LuReceipt, LuShoppingBag } from 'react-icons/lu'
+import { BsBank2 } from "react-icons/bs"
 
 interface CategoryRow {
   category_id: number
@@ -57,40 +58,14 @@ const COLORS = [
 ]
 
 const categoryEmojis: Record<string, string> = {
-  food:          '🍔',
-  dining:        '🍽️',
-  groceries:     '🛒',
-  transport:     '🚗',
-  shopping:      '🛍️',
-  entertainment: '🎬',
-  bills:         '📄',
-  health:        '💊',
-  travel:        '✈️',
-  housing:       '🏠',
-  income:        '💰',
-  salary:        '💼',
-  subscriptions: '🔄',
-  education:     '📚',
-  fitness:       '💪',
-  beauty:        '💅',
-  pets:          '🐾',
-  charity:       '❤️',
-  taxes:         '🧾',
-  insurance:     '🛡️',
-  rent:          '🏡',
-  utilities:     '💡',
-  clothing:      '👕',
-  restaurants:   '🍽️',
-  car:           '🚗',
-  phone:         '📱',
-  internet:      '🌐',
-  transfer:      '💸',
-  giving:        '🤲',
-  misc:          '🗂️',
-  alcohol:       '🍷',
-  gifts:         '🎁',
-  books:         '📖',
-  parking:       '🅿️',
+  food: '🍔', dining: '🍽️', groceries: '🛒', transport: '🚗',
+  shopping: '🛍️', entertainment: '🎬', bills: '📄', health: '💊',
+  travel: '✈️', housing: '🏠', income: '💰', salary: '💼',
+  subscriptions: '🔄', education: '📚', fitness: '💪', beauty: '💅',
+  pets: '🐾', charity: '❤️', taxes: '🧾', insurance: '🛡️',
+  rent: '🏡', utilities: '💡', clothing: '👕', restaurants: '🍽️', car: '🚗',
+  phone: '📱', internet: '🌐', transfer: '💸', giving: '🤲', misc: '🗂️',
+  alcohol: '🍷', gifts: '🎁', books: '📖', parking: '🅿️',
 }
 
 function getEmoji(name: string) {
@@ -131,7 +106,7 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
 }
 
 export default function Categories() {
-  const { selectedId } = useStatements()
+  const { selectedId, statements } = useStatements()
 
   const [categoryDefs, setCategoryDefs] = useState<CategoryRow[]>([])
   const [spendData, setSpendData] = useState<SpendRow[]>([])
@@ -169,7 +144,6 @@ export default function Categories() {
     fetchAll()
   }, [selectedId])
 
-  // Build parent → subcategory structure from spend + category defs
   const parentMap = new Map<string, { spent: number; subs: Map<string, number> }>()
   for (const row of spendData) {
     const spent = Number(row.spent)
@@ -198,21 +172,18 @@ export default function Categories() {
   const maxSpent = parents[0]?.spent ?? 1
   const selectedData = selectedParent ? parents.find(p => p.name === selectedParent) : null
 
-  // Get transactions for selected category
   const categoryTxs = selectedData
-    ? transactions.filter(t => {
-        return t.category_name === selectedData.name ||
-          categoryDefs.some(d => d.category_name === selectedData.name && d.category_name === t.category_name)
-      }).filter(t => Number(t.amount) < 0) // expenses only
+    ? transactions.filter(t =>
+        t.category_name === selectedData.name ||
+        categoryDefs.some(d => d.category_name === selectedData.name && d.category_name === t.category_name)
+      ).filter(t => Number(t.amount) < 0)
     : []
 
-  // Stats for selected category
   const txCount = categoryTxs.length
   const avgTx = txCount > 0 ? categoryTxs.reduce((s, t) => s + Math.abs(Number(t.amount)), 0) / txCount : 0
   const biggestTx = categoryTxs.reduce<TxRow | null>((best, t) =>
     !best || Math.abs(Number(t.amount)) > Math.abs(Number(best.amount)) ? t : best, null)
 
-  // Top merchants for selected category
   const merchantMap = new Map<string, number>()
   for (const tx of categoryTxs) {
     const name = tx.merchant_name ?? tx.description
@@ -248,6 +219,35 @@ export default function Categories() {
 
           {/* ── Left 60% ──────────────────────────────────────────────── */}
           <div className="flex flex-col gap-4 min-w-0" style={{ flex: '0 0 60%' }}>
+
+            {/* Statement banner */}
+            {(() => {
+              const stmt = statements.find(s => s.statement_id === selectedId)
+              if (!stmt) return null
+              const date = new Date(stmt.period_end).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+              return (
+                <div className="flex items-center gap-4 px-5 py-4 rounded-2xl border border-white shadow-sm"
+                  style={{ background: 'linear-gradient(135deg, var(--clio-glass) 0%, rgba(255,255,255,0.7) 100%)' }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: 'var(--clio-primary)', color: 'var(--clio-primary-foreground)' }}>
+                    <BsBank2 size={15} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] uppercase tracking-widest text-gray-400 mb-0.5">Current statement</p>
+                    <p className="text-[15px] font-semibold text-gray-900 truncate leading-tight">
+                      {stmt.bank_name} {stmt.account_type}
+                    </p>
+                    <p className="text-[12px] text-gray-400">{date}</p>
+                  </div>
+                  <span
+                    className="text-[10px] font-semibold px-2.5 py-1 rounded-full shrink-0 uppercase tracking-wide"
+                    style={{ backgroundColor: 'rgba(52,168,112,0.15)', color: '#34a870' }}
+                  >
+                    ● Active
+                  </span>
+                </div>
+              )
+            })()}
 
             {/* Pie + summary */}
             <div className="rounded-2xl bg-clio-glass border border-white shadow-sm p-6">
@@ -307,6 +307,13 @@ export default function Categories() {
 
             {/* Category list */}
             <div className="rounded-2xl bg-clio-glass border border-white shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                <span className="text-[11px] uppercase tracking-widest font-semibold text-gray-400">Category</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] uppercase tracking-widest font-semibold text-gray-400 w-32 text-center">Spending</span>
+                  <span className="text-[11px] uppercase tracking-widest font-semibold text-gray-400 w-20 text-right">Amount</span>
+                </div>
+              </div>
               {parents.map((p, pi) => {
                 const isExpanded = expanded.has(p.name)
                 const isSelected = selectedParent === p.name
@@ -345,13 +352,11 @@ export default function Categories() {
                         <div key={sub.name}>
                           <div className="h-px bg-gray-50 mx-4" />
                           <div className="flex items-center gap-3 px-5 py-2.5 bg-white/50 pl-14 border-l-2 ml-5" style={{ borderColor: p.color + '60' }}>
-                            <span className="w-1.5 h-1.5 rounded-full shrink-0"
-                              style={{ backgroundColor: p.color, opacity: 0.6 }} />
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: p.color, opacity: 0.6 }} />
                             <span className="text-[13px]">{getEmoji(sub.name)}</span>
                             <span className="text-[13px] text-gray-600 flex-1">{toTitleCase(sub.name)}</span>
                             <div className="w-32 h-1 bg-gray-100 rounded-full overflow-hidden shrink-0">
-                              <div className="h-full rounded-full"
-                                style={{ width: `${subPct}%`, backgroundColor: p.color, opacity: 0.7 }} />
+                              <div className="h-full rounded-full" style={{ width: `${subPct}%`, backgroundColor: p.color, opacity: 0.7 }} />
                             </div>
                             <span className="text-[13px] text-gray-600 w-20 text-right shrink-0">
                               {formatCurrency(sub.spent)}
@@ -382,10 +387,7 @@ export default function Categories() {
                     <h2 className="text-[24px] font-bold text-gray-900">{toTitleCase(selectedData.name)}</h2>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
-                    <StatCard
-                      label="Total spent"
-                      value={formatCurrency(selectedData.spent)}
-                    />
+                    <StatCard label="Total spent" value={formatCurrency(selectedData.spent)} />
                     <StatCard
                       label="% of total"
                       value={`${totalSpent > 0 ? Math.round((selectedData.spent / totalSpent) * 100) : 0}%`}
@@ -421,41 +423,6 @@ export default function Categories() {
                   </div>
                 )}
 
-                {/* Subcategory breakdown */}
-                {selectedData.subcategories.length > 1 && (
-                  <div className="rounded-2xl bg-clio-glass border border-white shadow-sm p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <LuReceipt size={14} className="text-gray-400" />
-                      <h3 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Breakdown</h3>
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      {selectedData.subcategories.map(sub => {
-                        const pct = Math.round((sub.spent / selectedData.spent) * 100)
-                        return (
-                          <div key={sub.name} className="flex flex-col gap-1">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[12px]">{getEmoji(sub.name)}</span>
-                                <span className="text-[13px] text-gray-700">{toTitleCase(sub.name)}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[11px] text-gray-400">{pct}%</span>
-                                <span className="text-[13px] font-medium text-gray-800 w-16 text-right">
-                                  {formatCurrency(sub.spent)}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full transition-all duration-500"
-                                style={{ width: `${pct}%`, backgroundColor: selectedData.color }} />
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
                 {/* Top merchants */}
                 {topMerchants.length > 0 && (
                   <div className="rounded-2xl bg-clio-glass border border-white shadow-sm p-5">
@@ -463,26 +430,31 @@ export default function Categories() {
                       <LuShoppingBag size={14} className="text-gray-400" />
                       <h3 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Top merchants</h3>
                     </div>
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-3">
                       {topMerchants.map(([name, amount], i) => {
                         const pct = Math.round((amount / selectedData.spent) * 100)
                         return (
-                          <div key={name} className="flex flex-col gap-1">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[11px] text-gray-400 w-4">{i + 1}</span>
+                          <div key={name} className="flex flex-col gap-1.5">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span
+                                  className="text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                                  style={{ backgroundColor: `${selectedData.color}20`, color: selectedData.color }}
+                                >
+                                  {i + 1}
+                                </span>
                                 <span className="text-[13px] text-gray-700 truncate">{name}</span>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 shrink-0">
                                 <span className="text-[11px] text-gray-400">{pct}%</span>
-                                <span className="text-[13px] font-medium text-gray-800 w-16 text-right">
+                                <span className="text-[13px] font-semibold text-gray-800 w-16 text-right">
                                   {formatCurrency(amount)}
                                 </span>
                               </div>
                             </div>
-                            <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full"
-                                style={{ width: `${pct}%`, backgroundColor: selectedData.color, opacity: 0.7 }} />
+                            <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-500"
+                                style={{ width: `${pct}%`, background: `linear-gradient(to right, ${selectedData.color}, ${selectedData.color}99)` }} />
                             </div>
                           </div>
                         )

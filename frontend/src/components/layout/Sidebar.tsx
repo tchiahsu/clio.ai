@@ -2,8 +2,8 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { MdOutlineDashboard } from 'react-icons/md'
 import {
   LuWallet, LuArrowLeftRight, LuTarget, LuFileText,
-  LuPlus, LuUpload, LuSparkles, LuMessageSquare,
-  LuChevronDown, LuLoader, LuLogOut, LuLogIn
+  LuUpload, LuSparkles, LuMessageSquare,
+  LuChevronDown, LuLoader, LuLogOut, LuLogIn, LuTrash2
 } from 'react-icons/lu'
 import { RiPieChartLine } from 'react-icons/ri'
 import { useRef, useState, useEffect } from 'react'
@@ -71,8 +71,8 @@ export default function Sidebar() {
   const [uploading, setUploading]       = useState(false)
   const [user, setUser]                 = useState<User | null>(null)
   const [chats, setChats]               = useState<Chat[]>([])
-  const [creatingChat, setCreatingChat] = useState(false)
   const [statementPickerOpen, setStatementPickerOpen] = useState(false)
+  const [activeChatId, setActiveChatId] = useState<number | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const statementPickerRef = useRef<HTMLDivElement>(null)
@@ -89,6 +89,28 @@ export default function Sidebar() {
       .then(r => r.json())
       .then(data => { if (data.data) setChats(data.data) })
       .catch(err => console.error('Failed to fetch chats', err))
+  }, [])
+
+  // Refresh chats when a new chat is created in AskClio
+  useEffect(() => {
+    const refresh = () => {
+      fetch('/api/chat/recent')
+        .then(r => r.json())
+        .then(data => { if (data.data) setChats(data.data) })
+        .catch(err => console.error('Failed to refresh chats', err))
+    }
+    window.addEventListener('chat-created', refresh)
+    return () => window.removeEventListener('chat-created', refresh)
+  }, [])
+
+  // Track active chat from AskClio
+  useEffect(() => {
+    const onChatChanged = (e: Event) => {
+      const chatId = (e as CustomEvent).detail?.chatId ?? null
+      setActiveChatId(chatId)
+    }
+    window.addEventListener('chat-changed', onChatChanged)
+    return () => window.removeEventListener('chat-changed', onChatChanged)
   }, [])
 
   // Close dropdown when clicking outside
@@ -111,23 +133,17 @@ export default function Sidebar() {
     }
   }
 
-  const handleNewChat = async () => {
-    setCreatingChat(true)
+  const handleDeleteChat = async (chatId: number, e: React.MouseEvent) => {
+    e.stopPropagation()
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'New Chat' }),
-      })
-      const data = await res.json()
-      if (data.data?.chat_id) {
-        setChats(prev => [data.data, ...prev])
-        navigate(`/chat/${data.data.chat_id}`)
+      await fetch(`/api/chat?chatId=${chatId}`, { method: 'DELETE' })
+      setChats(prev => prev.filter(c => c.chat_id !== chatId))
+      // If deleting the currently open chat, reset to new chat
+      if (chatId === activeChatId) {
+        window.dispatchEvent(new Event('chat-reset'))
       }
     } catch (err) {
-      console.error('Failed to create chat', err)
-    } finally {
-      setCreatingChat(false)
+      console.error('Failed to delete chat', err)
     }
   }
 
@@ -213,43 +229,31 @@ export default function Sidebar() {
             label="Chats"
             open={chatsOpen}
             onToggle={() => setChatsOpen(o => !o)}
-            action={
-              <button
-                onClick={handleNewChat}
-                disabled={creatingChat}
-                className="w-5 h-5 flex items-center justify-center rounded-md
-                  text-clio-muted-foreground hover:text-clio-primary hover:bg-white/60
-                  transition-colors disabled:opacity-40"
-                title="New chat"
-              >
-                {creatingChat
-                  ? <LuLoader size={13} className="animate-spin" />
-                  : <LuPlus size={13} />
-                }
-              </button>
-            }
           />
           {chatsOpen && (
-            <div className="flex flex-col gap-0.5 max-h-25 overflow-y-auto mt-0.5 px-1">
+            <div className="flex flex-col gap-0.5 max-h-[100px] overflow-y-auto mt-0.5 px-1">
               {chats.length === 0 ? (
                 <p className="px-3 py-1.5 text-[12px] text-clio-muted-foreground italic">No chats yet</p>
               ) : chats.map(chat => (
-                <NavLink
+                <div
                   key={chat.chat_id}
-                  to={`/chat/${chat.chat_id}`}
-                  className={({ isActive }) =>
-                    `px-3 py-1.5 text-[12px] rounded-lg truncate no-underline transition-colors block
-                    ${isActive
-                      ? 'bg-clio-primary/10 text-clio-primary font-medium'
-                      : 'text-clio-foreground-70 hover:bg-white/50 hover:text-gray-800'
-                    }`
-                  }
+                  className="group flex items-center gap-1 pl-3 rounded-lg hover:bg-gray-200 transition-colors"
                 >
-                  <span className="flex items-center gap-2">
+                  <button
+                    onClick={() => navigate(`/dashboard?chatId=${chat.chat_id}`)}
+                    className="flex-1 flex items-center gap-2 px-3 py-1.5 text-[12px]! truncate text-left text-clio-foreground-70 hover:text-gray-800 min-w-0"
+                  >
                     <LuMessageSquare size={13} className="shrink-0 opacity-50" />
-                    {chat.title}
-                  </span>
-                </NavLink>
+                    <span className="truncate lowercase">{chat.title}</span>
+                  </button>
+                  <button
+                    onClick={e => handleDeleteChat(chat.chat_id, e)}
+                    className="shrink-0 w-6 h-6 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 hover:bg-red-50 mr-1"
+                    title="Delete chat"
+                  >
+                    <LuTrash2 size={11} />
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -262,10 +266,10 @@ export default function Sidebar() {
         {/* ── Statement selector card ────────────────────────────────────── */}
         <div className="rounded-2xl p-3.5 bg-glass-inset border border-clio-glass-border shadow-sm flex flex-col gap-2 shrink-0 mx-0.5 mb-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px]! uppercase tracking-widest text-clio-muted-foreground">Statement</span>
+            <span className="text-[11px] uppercase tracking-widest text-clio-muted-foreground">Statement</span>
             <div className="flex items-center gap-1.5">
               {statements.some(s => s.current_status === 'processing' || s.current_status === 'queued') && (
-                <span className="text-[11px]! text-amber-500 flex items-center gap-1">
+                <span className="text-[11px] text-amber-500 flex items-center gap-1">
                   <LuLoader size={10} className="animate-spin" />
                   {statements.filter(s => s.current_status !== 'complete' && s.current_status !== 'failed').length}
                 </span>
@@ -287,7 +291,7 @@ export default function Sidebar() {
             <button
               onClick={() => setStatementPickerOpen(o => !o)}
               className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl
-                text-[12px]! bg-white/40 hover:bg-white/60 transition-colors border border-white/50"
+                text-[12px] bg-white/40 hover:bg-white/60 transition-colors border border-white/50"
             >
               <span className="text-clio-foreground-70 truncate">
                 {isLoading ? 'Loading…'
@@ -299,20 +303,26 @@ export default function Sidebar() {
             </button>
 
             {statementPickerOpen && (
-              <div className="absolute flex flex-col gap-2 left-0 right-0 z-20 mt-1 p-3 rounded-xl bg-white/95 backdrop-blur border border-clio-glass-border shadow-lg overflow-hidden max-h-48 overflow-y-auto">
-                {completeStatements.map(s => (
-                  <button
-                    key={s.statement_id}
-                    onClick={() => { setSelectedId(s.statement_id); setStatementPickerOpen(false) }}
-                    className={`w-full flex items-center px-3 py-2 text-[12px]! text-left transition-colors truncate
-                      ${s.statement_id === selectedId
-                        ? 'bg-clio-primary/10 text-clio-primary font-medium'
-                        : 'text-clio-foreground-70 hover:text-blue-500'
-                      }`}
-                  >
-                    {formatLabel(s)}
-                  </button>
-                ))}
+              <div className="absolute left-0 right-0 z-20 bottom-full mb-1 rounded-xl border border-clio-glass-border shadow-lg overflow-hidden max-h-48 overflow-y-auto" style={{ backgroundColor: 'white' }}>
+                {completeStatements.map(s => {
+                  const isSelected = s.statement_id === selectedId
+                  return (
+                    <button
+                      key={s.statement_id}
+                      onClick={() => { setSelectedId(s.statement_id); setStatementPickerOpen(false) }}
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2 text-[12px] text-left"
+                      style={{
+                        backgroundColor: isSelected ? '#f3f4f6' : 'white',
+                        color: '#374151',
+                        fontWeight: isSelected ? 600 : 400,
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#f3f4f6' }}
+                      onMouseLeave={e => { e.currentTarget.style.backgroundColor = isSelected ? '#f3f4f6' : 'white' }}
+                    >
+                      <span className="truncate">{formatLabel(s)}</span>
+                    </button>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -387,13 +397,6 @@ export default function Sidebar() {
             >
               <LuUpload size={16} />
               <span className="text-[13px]">Upload Statement</span>
-            </button>
-            <button
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-gray-400 hover:bg-gray-50 hover:text-gray-700 w-full text-left"
-              onClick={() => { handleNewChat(); setMenuOpen(false) }}
-            >
-              <LuMessageSquare size={16} />
-              <span className="text-[13px]">New Chat</span>
             </button>
             <div className="h-px bg-gray-100 mx-2 my-1" />
             <button

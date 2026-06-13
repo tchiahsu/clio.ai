@@ -52,7 +52,6 @@ function getInitialColor(name: string) {
   return colors[Math.abs(hash) % colors.length]
 }
 
-
 const categoryEmojis: Record<string, string> = {
   food:          '🍔',
   dining:        '🍽️',
@@ -74,6 +73,20 @@ const categoryEmojis: Record<string, string> = {
   charity:       '❤️',
   taxes:         '🧾',
   insurance:     '🛡️',
+  rent:          '🏡',
+  utilities:     '💡',
+  clothing:      '👕',
+  restaurants:   '🍽️',
+  car:           '🚗',
+  phone:         '📱',
+  internet:      '🌐',
+  transfer:      '💸',
+  giving:        '🤲',
+  misc:          '🗂️',
+  alcohol:       '🍷',
+  gifts:         '🎁',
+  books:         '📖',
+  parking:       '🅿️',
 }
 
 function getCategoryEmoji(name: string | null) {

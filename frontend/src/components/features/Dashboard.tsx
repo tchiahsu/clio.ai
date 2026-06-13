@@ -27,24 +27,22 @@ function formatLabel(s: { bank_name: string; account_type: string; period_end: s
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { selectedId, activeStatementIds, statements, filter } = useStatements()
+  const { selectedId, statements } = useStatements()
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [categories, setCategories] = useState<CategorySpend[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
-  const primaryId = filter === 'current' ? selectedId : activeStatementIds[0] ?? null
-  const activeStatement = statements.find(s => s.statement_id === primaryId)
+  const activeStatement = statements.find(s => s.statement_id === selectedId)
 
   useEffect(() => {
-    if (!primaryId) return
-
+    if (!selectedId) return
     const fetchDashboardData = async () => {
       setIsLoading(true)
       try {
         const [summaryRes, categoriesRes] = await Promise.all([
-          fetch(`/api/dashboard/totals?statementId=${primaryId}`),
-          fetch(`/api/dashboard/categories?statementId=${primaryId}`),
+          fetch(`/api/dashboard/totals?statementId=${selectedId}`),
+          fetch(`/api/dashboard/categories?statementId=${selectedId}`),
         ])
         const summaryData = await summaryRes.json()
         const categoriesData = await categoriesRes.json()
@@ -56,27 +54,18 @@ export default function Dashboard() {
         setIsLoading(false)
       }
     }
-
     fetchDashboardData()
-  }, [primaryId])
+  }, [selectedId])
 
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
   const categoryColors = [
-    '#ef4444',  // red
-    '#ec4899',  // pink
-    '#f97316',  // orange
-    '#3b82f6',  // blue
-    '#22c55e',  // green
-    '#eab308',  // yellow
-    '#06b6d4',  // cyan
-    '#92400e',  // brown
-    '#1a1a1a',  // black
-    '#a855f7',  // purple
+    '#ef4444', '#ec4899', '#f97316', '#3b82f6',
+    '#22c55e', '#eab308', '#06b6d4', '#92400e',
+    '#1a1a1a', '#a855f7',
   ]
 
-  // TODO: replace with real per-category budget once budgets are wired up
   const maxSpent = Math.max(...categories.map(c => Number(c.spent)), 1) * 1.1
 
   return (
@@ -97,7 +86,7 @@ export default function Dashboard() {
             </div>
           )}
           <button
-            className="flex items-center gap-2 rounded-xl px-3 py-2 outline-none cursor-pointer shadow-sm"
+            className="flex items-center gap-2 rounded-xl outline-none cursor-pointer shadow-sm"
             style={{ padding: '8px 14px', border: '1px solid #e5e7eb', backgroundColor: 'var(--clio-glass)', color: '#4b5563', fontSize: '14px' }}
             onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#f9fafb')}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--clio-glass)')}
@@ -114,14 +103,8 @@ export default function Dashboard() {
         <div className="text-sm text-gray-400">Loading…</div>
       ) : summary ? (
         <div className="grid grid-cols-2 gap-4">
-          <ContentCard
-            title="Total Income"
-            amount={formatCurrency(summary.total_income)}
-          />
-          <NetThisMonthCard
-            statementId={primaryId!}
-            accountId={activeStatement?.account_id ?? 0}
-          />
+          <ContentCard title="Total Income" amount={formatCurrency(summary.total_income)} />
+          <NetThisMonthCard statementId={selectedId!} accountId={activeStatement?.account_id ?? 0} />
         </div>
       ) : (
         <div className="text-sm text-gray-400">
@@ -132,11 +115,7 @@ export default function Dashboard() {
       )}
 
       {categories.length > 0 && (
-        <Section
-          title="Top Categories"
-          linkText="View All"
-          onLinkClick={() => navigate('/categories')}
-        >
+        <Section title="Top Categories" linkText="View All" onLinkClick={() => navigate('/categories')}>
           <div className="grid grid-cols-2">
             {categories.slice(0, 6).map((c, i) => (
               <CategoryRow

@@ -110,6 +110,11 @@ function CategoryBadge({ name }: { name: string | null }) {
   )
 }
 
+function formatLabel(s: { bank_name: string; account_type: string; period_end: string }) {
+  const date = new Date(s.period_end).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  return `${s.bank_name} ${s.account_type} — ${date}`
+}
+
 const btnStyle = {
   padding: '8px 14px',
   border: '1px solid #e5e7eb',
@@ -119,7 +124,7 @@ const btnStyle = {
 }
 
 export default function Transactions() {
-  const { selectedId, filter, activeStatementIds } = useStatements()
+  const { selectedId, statements } = useStatements()
 
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -143,17 +148,12 @@ export default function Transactions() {
     const fetch_ = async () => {
       setIsLoading(true)
       try {
-        let url: string
-        if (filter === 'all') url = '/api/transaction?scope=all'
-        else if (filter === 'current' && selectedId) url = `/api/transaction?scope=statement&statementId=${selectedId}`
-        else url = '/api/transaction?scope=latest'
-
+        const url = selectedId
+          ? `/api/transaction?scope=statement&statementId=${selectedId}`
+          : '/api/transaction?scope=all'
         const res = await fetch(url)
         const data = await res.json()
-        let rows: Transaction[] = data.data ?? []
-        if (filter === 'range' && activeStatementIds.length > 0)
-          rows = rows.filter(t => activeStatementIds.includes(t.statement_id))
-        setTransactions(rows)
+        setTransactions(data.data ?? [])
         setSelectedTx(null)
       } catch (err) {
         console.error('Failed to fetch transactions', err)
@@ -162,7 +162,7 @@ export default function Transactions() {
       }
     }
     fetch_()
-  }, [selectedId, filter, activeStatementIds])
+  }, [selectedId])
 
   const filterCategories = ['All', ...Array.from(new Set(transactions.map(t => t.category_name ?? 'Uncategorized'))).sort()]
 
@@ -209,7 +209,6 @@ export default function Transactions() {
         { method: 'PATCH' }
       )
       if (res.ok) {
-        // Update locally
         const updated = { ...selectedTx, category_name: categoryName }
         setSelectedTx(updated)
         setTransactions(prev => prev.map(t =>
@@ -259,6 +258,20 @@ export default function Transactions() {
               </button>
             )}
           </div>
+
+          {/* Current statement label */}
+          {(() => {
+            const stmt = statements.find(s => s.statement_id === selectedId)
+            if (!stmt) return null
+            return (
+              <div
+                className="flex items-center gap-2 rounded-xl shadow-sm shrink-0"
+                style={{ ...btnStyle, padding: '7px 12px', maxWidth: '220px' }}
+              >
+                <span className="text-[13px] text-gray-600 truncate">{formatLabel(stmt)}</span>
+              </div>
+            )
+          })()}
 
           {/* Filter */}
           <div className="relative">
@@ -352,7 +365,6 @@ export default function Transactions() {
                               ${isSelected ? 'bg-gray-100' : 'hover:bg-white/60'}`}
                           >
                             <div className={`w-0.5 h-6 rounded-full shrink-0 transition-colors ${isSelected ? 'bg-clio-primary' : 'bg-transparent group-hover:bg-gray-300'}`} />
-                            {/* Single line: name · account · category · amount */}
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               <span className="text-[13px] font-medium text-gray-800 truncate min-w-0 shrink">{name}</span>
                               <span className="text-[11px] text-gray-400 shrink-0">·</span>
@@ -395,10 +407,8 @@ export default function Transactions() {
             ) : (
               <div className="flex flex-col gap-4 p-5">
 
-                {/* Date */}
                 <p className="text-[12px] text-gray-400">{formatDetailDate(selectedTx.transaction_date)}</p>
 
-                {/* Name + amount */}
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="text-[20px] font-bold text-gray-900 leading-tight">
                     {selectedTx.merchant_name ?? selectedTx.description}
@@ -411,7 +421,6 @@ export default function Transactions() {
                   </span>
                 </div>
 
-                {/* Category + Account grid */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-[11px] text-gray-400 mb-1">Category</p>
@@ -459,7 +468,6 @@ export default function Transactions() {
                   </div>
                 </div>
 
-                {/* Extra detail rows */}
                 <div className="flex flex-col gap-2 pt-3 border-t border-gray-100">
                   {[
                     { label: 'Type',      value: isIncome(selectedTx.amount) ? 'Income' : 'Expense' },
@@ -472,7 +480,6 @@ export default function Transactions() {
                   ))}
                 </div>
 
-                {/* Similar transactions */}
                 {similarTxs.length > 0 && (
                   <div className="pt-3 border-t border-gray-100 flex flex-col gap-3">
                     <h3 className="text-[14px] font-bold text-gray-800">Similar transactions</h3>

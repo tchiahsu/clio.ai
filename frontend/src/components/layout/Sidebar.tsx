@@ -8,6 +8,7 @@ import {
 import { RiPieChartLine } from 'react-icons/ri'
 import { useRef, useState, useEffect } from 'react'
 import { useStatements } from '../../context/StatementContext'
+import { FaCircleArrowDown } from "react-icons/fa6";
 
 const navItems = [
   { name: 'Dashboard',    path: '/dashboard',    icon: <MdOutlineDashboard /> },
@@ -66,16 +67,18 @@ export default function Sidebar() {
   const navigate = useNavigate()
   const { statements, selectedId, setSelectedId, isLoading, reload } = useStatements()
 
-  const [menuOpen, setMenuOpen]         = useState(false)
-  const [chatsOpen, setChatsOpen]       = useState(true)
-  const [uploading, setUploading]       = useState(false)
-  const [user, setUser]                 = useState<User | null>(null)
-  const [chats, setChats]               = useState<Chat[]>([])
+  const [menuOpen, setMenuOpen]               = useState(false)
+  const [chatsOpen, setChatsOpen]             = useState(true)
+  const [uploading, setUploading]             = useState(false)
+  const [user, setUser]                       = useState<User | null>(null)
+  const [chats, setChats]                     = useState<Chat[]>([])
   const [statementPickerOpen, setStatementPickerOpen] = useState(false)
-  const [activeChatId, setActiveChatId] = useState<number | null>(null)
+  const [activeChatId, setActiveChatId]       = useState<number | null>(null)
+  const [canScrollChats, setCanScrollChats]   = useState(false)
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef       = useRef<HTMLInputElement>(null)
   const statementPickerRef = useRef<HTMLDivElement>(null)
+  const chatListRef        = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -85,7 +88,7 @@ export default function Sidebar() {
   }, [])
 
   useEffect(() => {
-    fetch('/api/chat/recent')
+    fetch('/api/chat/history')
       .then(r => r.json())
       .then(data => { if (data.data) setChats(data.data) })
       .catch(err => console.error('Failed to fetch chats', err))
@@ -94,7 +97,7 @@ export default function Sidebar() {
   // Refresh chats when a new chat is created in AskClio
   useEffect(() => {
     const refresh = () => {
-      fetch('/api/chat/recent')
+      fetch('/api/chat/history')
         .then(r => r.json())
         .then(data => { if (data.data) setChats(data.data) })
         .catch(err => console.error('Failed to refresh chats', err))
@@ -113,7 +116,18 @@ export default function Sidebar() {
     return () => window.removeEventListener('chat-changed', onChatChanged)
   }, [])
 
-  // Close dropdown when clicking outside
+  // Detect if chat list is scrollable — re-run when chats change or section opens
+  useEffect(() => {
+    const el = chatListRef.current
+    if (!el) return
+    const check = () => setCanScrollChats(el.scrollHeight > el.clientHeight)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [chats, chatsOpen])
+
+  // Close statement dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (statementPickerRef.current && !statementPickerRef.current.contains(e.target as Node)) {
@@ -138,7 +152,6 @@ export default function Sidebar() {
     try {
       await fetch(`/api/chat?chatId=${chatId}`, { method: 'DELETE' })
       setChats(prev => prev.filter(c => c.chat_id !== chatId))
-      // If deleting the currently open chat, reset to new chat
       if (chatId === activeChatId) {
         window.dispatchEvent(new Event('chat-reset'))
       }
@@ -231,30 +244,40 @@ export default function Sidebar() {
             onToggle={() => setChatsOpen(o => !o)}
           />
           {chatsOpen && (
-            <div className="flex flex-col gap-0.5 max-h-[100px] overflow-y-auto mt-0.5 px-1">
-              {chats.length === 0 ? (
-                <p className="px-3 py-1.5 text-[12px] text-clio-muted-foreground italic">No chats yet</p>
-              ) : chats.map(chat => (
-                <div
-                  key={chat.chat_id}
-                  className="group flex items-center gap-1 pl-3 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  <button
-                    onClick={() => navigate(`/dashboard?chatId=${chat.chat_id}`)}
-                    className="flex-1 flex items-center gap-2 px-3 py-1.5 text-[12px]! truncate text-left text-clio-foreground-70 hover:text-gray-800 min-w-0"
+            <div className="flex flex-col">
+              <div
+                ref={chatListRef}
+                className="flex flex-col gap-0.5 max-h-40 overflow-y-auto mt-0.5 px-1"
+              >
+                {chats.length === 0 ? (
+                  <p className="px-3 py-1.5 text-[12px] text-clio-muted-foreground italic">No chats yet</p>
+                ) : chats.map(chat => (
+                  <div
+                    key={chat.chat_id}
+                    className="group flex items-center gap-1 rounded-lg hover:bg-gray-200 pl-2 transition-colors"
                   >
-                    <LuMessageSquare size={13} className="shrink-0 opacity-50" />
-                    <span className="truncate lowercase">{chat.title}</span>
-                  </button>
-                  <button
-                    onClick={e => handleDeleteChat(chat.chat_id, e)}
-                    className="shrink-0 w-6 h-6 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 hover:bg-red-50 mr-1"
-                    title="Delete chat"
-                  >
-                    <LuTrash2 size={11} />
-                  </button>
+                    <button
+                      onClick={() => navigate(`/dashboard?chatId=${chat.chat_id}`)}
+                      className="flex-1 flex items-center gap-2 px-3 py-1.5 text-[12px]! truncate text-left text-clio-foreground-70 hover:text-gray-800 min-w-0"
+                    >
+                      <LuMessageSquare size={13} className="shrink-0 opacity-50" />
+                      <span className="truncate">{chat.title}</span>
+                    </button>
+                    <button
+                      onClick={e => handleDeleteChat(chat.chat_id, e)}
+                      className="shrink-0 w-6 h-6 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 hover:bg-red-50 mr-1"
+                      title="Delete chat"
+                    >
+                      <LuTrash2 size={11} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {canScrollChats && (
+                <div className="flex justify-center py-2 pointer-events-none">
+                  <span className="animate-bounce text-gray-400 text-[13px]"><FaCircleArrowDown /></span>
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
@@ -266,10 +289,10 @@ export default function Sidebar() {
         {/* ── Statement selector card ────────────────────────────────────── */}
         <div className="rounded-2xl p-3.5 bg-glass-inset border border-clio-glass-border shadow-sm flex flex-col gap-2 shrink-0 mx-0.5 mb-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase tracking-widest text-clio-muted-foreground">Statement</span>
+            <span className="text-[11px]! uppercase tracking-widest text-clio-muted-foreground">Statement</span>
             <div className="flex items-center gap-1.5">
               {statements.some(s => s.current_status === 'processing' || s.current_status === 'queued') && (
-                <span className="text-[11px] text-amber-500 flex items-center gap-1">
+                <span className="text-[11px]! text-amber-500 flex items-center gap-1">
                   <LuLoader size={10} className="animate-spin" />
                   {statements.filter(s => s.current_status !== 'complete' && s.current_status !== 'failed').length}
                 </span>
@@ -291,7 +314,7 @@ export default function Sidebar() {
             <button
               onClick={() => setStatementPickerOpen(o => !o)}
               className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl
-                text-[12px] bg-white/40 hover:bg-white/60 transition-colors border border-white/50"
+                text-[12px]! bg-white/40 hover:bg-white/60 transition-colors border border-white/50"
             >
               <span className="text-clio-foreground-70 truncate">
                 {isLoading ? 'Loading…'
@@ -303,14 +326,17 @@ export default function Sidebar() {
             </button>
 
             {statementPickerOpen && (
-              <div className="absolute left-0 right-0 z-20 bottom-full mb-1 rounded-xl border border-clio-glass-border shadow-lg overflow-hidden max-h-48 overflow-y-auto" style={{ backgroundColor: 'white' }}>
+              <div
+                className="absolute left-0 right-0 flex flex-col gap-2 z-20 p-3 bottom-full mb-1 rounded-xl border border-clio-glass-border shadow-lg overflow-hidden max-h-48 overflow-y-auto"
+                style={{ backgroundColor: 'white' }}
+              >
                 {completeStatements.map(s => {
                   const isSelected = s.statement_id === selectedId
                   return (
                     <button
                       key={s.statement_id}
                       onClick={() => { setSelectedId(s.statement_id); setStatementPickerOpen(false) }}
-                      className="w-full flex items-center justify-between gap-2 px-3 py-2 text-[12px] text-left"
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2 text-[12px]! text-left rounded-xl"
                       style={{
                         backgroundColor: isSelected ? '#f3f4f6' : 'white',
                         color: '#374151',
@@ -319,7 +345,7 @@ export default function Sidebar() {
                       onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#f3f4f6' }}
                       onMouseLeave={e => { e.currentTarget.style.backgroundColor = isSelected ? '#f3f4f6' : 'white' }}
                     >
-                      <span className="truncate">{formatLabel(s)}</span>
+                      <span className="truncate ml-2">{formatLabel(s)}</span>
                     </button>
                   )
                 })}

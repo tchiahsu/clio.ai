@@ -6,7 +6,6 @@ import CategoryRow from '../layout/CategoryRow'
 import NetThisMonthCard from '../layout/NetThisMonthCard'
 import { useStatements } from '../../context/StatementContext'
 import { useNavigate } from 'react-router-dom'
-import { LuUpload } from 'react-icons/lu'
 
 interface DashboardSummary {
   total_income: number
@@ -85,15 +84,6 @@ export default function Dashboard() {
               {formatLabel(activeStatement)}
             </div>
           )}
-          <button
-            className="flex items-center gap-2 rounded-xl outline-none cursor-pointer shadow-sm"
-            style={{ padding: '8px 14px', border: '1px solid #e5e7eb', backgroundColor: 'var(--clio-glass)', color: '#4b5563', fontSize: '14px' }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#f9fafb')}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--clio-glass)')}
-            onClick={() => navigate('/statements')}
-          >
-            <LuUpload size={14} /> Upload statement
-          </button>
         </div>
       </div>
 

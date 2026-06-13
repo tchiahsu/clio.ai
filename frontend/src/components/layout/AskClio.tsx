@@ -37,6 +37,7 @@ export default function AskClio() {
   const [isLoading, setIsLoading] = useState(false)
   const [recentChats, setRecentChats] = useState<ChatSession[]>([])
   const [chatId, setChatId] = useState<number | null>(null)
+  const [isNewChat, setIsNewChat] = useState(true)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -56,6 +57,7 @@ export default function AskClio() {
   useEffect(() => {
     const onReset = () => {
       setChatId(null)
+      setIsNewChat(true)
       setMessages([{
         role: 'assistant',
         content: "I'm your finance assistant. I can break down spending, flag unusual transactions, and help you hit your goals. Ask me anything.",
@@ -73,6 +75,7 @@ export default function AskClio() {
     if (isNewChat) {
       // Reset to fresh state without creating a session
       setChatId(null)
+      setIsNewChat(true)
       setMessages([{
         role: 'assistant',
         content: "I'm your finance assistant. I can break down spending, flag unusual transactions, and help you hit your goals. Ask me anything.",
@@ -92,6 +95,7 @@ export default function AskClio() {
       const result = await response.json()
       const numId = Number(loadChatId)
       setChatId(numId)
+      setIsNewChat(false)
       window.dispatchEvent(new CustomEvent('chat-changed', { detail: { chatId: numId } }))
       const loaded: Message[] = result.data.map((m: ChatMessage) => ({
         role: (m.speaker_type === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
@@ -128,6 +132,7 @@ export default function AskClio() {
         const sessionData = await sessionRes.json()
         currentChatId = sessionData.data.chat_id
         setChatId(currentChatId)
+        setIsNewChat(false)
         window.dispatchEvent(new Event('chat-created'))
         window.dispatchEvent(new CustomEvent('chat-changed', { detail: { chatId: currentChatId } }))
       }
@@ -208,8 +213,8 @@ export default function AskClio() {
       {isExpanded && (
         <div className="flex flex-col gap-2 mb-4">
 
-          {/* Show recent chats only when no conversation has started */}
-          {messages.length <= 1 && recentChats.map((chat) => (
+          {/* Show recent chats only on a fresh new chat */}
+          {isNewChat && recentChats.map((chat) => (
             <div
               key={chat.chat_id}
               onClick={() => handleLoadChat(chat.chat_id)}

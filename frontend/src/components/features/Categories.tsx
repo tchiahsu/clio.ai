@@ -23,6 +23,7 @@ interface TxRow {
   amount: number
   merchant_name: string | null
   category_name: string | null
+  category_id: number | null
   bank_name: string
   account_type: string
 }
@@ -123,6 +124,10 @@ export default function Categories() {
   }, [])
 
   useEffect(() => {
+    setSelectedParent(null)
+  }, [selectedId])
+
+  useEffect(() => {
     if (!selectedId) return
     const fetchAll = async () => {
       setIsLoading(true)
@@ -172,10 +177,18 @@ export default function Categories() {
   const maxSpent = parents[0]?.spent ?? 1
   const selectedData = selectedParent ? parents.find(p => p.name === selectedParent) : null
 
+  // Get all category_ids that belong to the selected parent category
+  const selectedCategoryIds = new Set(
+    categoryDefs
+      .filter(d => d.category_name === selectedData?.name)
+      .map(d => d.category_id)
+  )
+
   const categoryTxs = selectedData
     ? transactions.filter(t =>
-        t.category_name === selectedData.name ||
-        categoryDefs.some(d => d.category_name === selectedData.name && d.category_name === t.category_name)
+        // Match by category_id if available, fall back to category_name
+        (t.category_id != null && selectedCategoryIds.has(t.category_id)) ||
+        t.category_name === selectedData.name
       ).filter(t => Number(t.amount) < 0)
     : []
 

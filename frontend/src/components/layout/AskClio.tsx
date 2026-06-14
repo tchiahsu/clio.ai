@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { LuSparkles, LuArrowUp, LuChevronDown, LuChevronUp, LuPencil } from 'react-icons/lu'
 
@@ -18,39 +18,55 @@ interface ChatMessage {
   message_content: string
 }
 
+const WELCOME: Message = {
+  role: 'assistant',
+  content: "I'm your finance assistant. I can break down spending, flag unusual transactions, and help you hit your goals. Ask me anything.",
+}
+
 const SUGGESTED_PROMPTS = [
   'How much did I spend on food this month?',
   'Am I on track with my budget?',
   'Where can I cut back?',
 ]
 
+// Persist chat state across navigation using sessionStorage
+function loadSession(): { chatId: number | null; messages: Message[] } {
+  try {
+    const raw = sessionStorage.getItem('clio-chat')
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  return { chatId: null, messages: [WELCOME] }
+}
+
+function saveSession(chatId: number | null, messages: Message[]) {
+  try {
+    sessionStorage.setItem('clio-chat', JSON.stringify({ chatId, messages }))
+  } catch { /* ignore */ }
+}
+
 export default function AskClio() {
   const [searchParams, setSearchParams] = useSearchParams()
+
+  const initial = loadSession()
   const [isExpanded, setIsExpanded] = useState(false)
   const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: "I'm your finance assistant. I can break down spending, flag unusual transactions, and help you hit your goals. Ask me anything.",
-    },
-  ])
+  const [messages, setMessages] = useState<Message[]>(initial.messages)
   const [isLoading, setIsLoading] = useState(false)
   const [recentChats, setRecentChats] = useState<ChatSession[]>([])
-  const [chatId, setChatId] = useState<number | null>(null)
-  const [isNewChat, setIsNewChat] = useState(true)
+  const [chatId, setChatId] = useState<number | null>(initial.chatId)
+  const [isNewChat, setIsNewChat] = useState(initial.chatId === null && initial.messages.length <= 1)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Persist to sessionStorage whenever chat state changes
   useEffect(() => {
-    const fetchRecentChats = async () => {
-      try {
-        const response = await fetch('/api/chat/recent')
-        const result = await response.json()
-        setRecentChats(result.data)
-      } catch {
-        console.error('Failed to fetch recent chats')
-      }
-    }
-    fetchRecentChats()
+    saveSession(chatId, messages)
+  }, [chatId, messages])
+
+  useEffect(() => {
+    fetch('/api/chat/history')
+      .then(r => r.json())
+      .then(data => { if (data.data) setRecentChats(data.data) })
+      .catch(() => console.error('Failed to fetch recent chats'))
   }, [])
 
   // Reset when the active chat is deleted from sidebar
@@ -58,38 +74,15 @@ export default function AskClio() {
     const onReset = () => {
       setChatId(null)
       setIsNewChat(true)
-      setMessages([{
-        role: 'assistant',
-        content: "I'm your finance assistant. I can break down spending, flag unusual transactions, and help you hit your goals. Ask me anything.",
-      }])
+      setMessages([WELCOME])
+      saveSession(null, [WELCOME])
     }
     window.addEventListener('chat-reset', onReset)
     return () => window.removeEventListener('chat-reset', onReset)
   }, [])
 
-  // Load chat from URL param whenever it changes
-  useEffect(() => {
-    const paramChatId = searchParams.get('chatId')
-    const isNewChat = searchParams.get('newChat')
-
-    if (isNewChat) {
-      // Reset to fresh state without creating a session
-      setChatId(null)
-      setIsNewChat(true)
-      setMessages([{
-        role: 'assistant',
-        content: "I'm your finance assistant. I can break down spending, flag unusual transactions, and help you hit your goals. Ask me anything.",
-      }])
-      setIsExpanded(true)
-      setSearchParams({})
-    } else if (paramChatId) {
-      handleLoadChat(paramChatId)
-      setIsExpanded(true)
-      setSearchParams({})
-    }
-  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleLoadChat = async (loadChatId: string) => {
+  // handleLoadChat defined before the useEffect that calls it
+  const handleLoadChat = useCallback(async (loadChatId: string) => {
     try {
       const response = await fetch(`/api/chat/messages?chatId=${loadChatId}`)
       const result = await response.json()
@@ -106,14 +99,31 @@ export default function AskClio() {
     } catch {
       console.error('Failed to load chat')
     }
-  }
+  }, [])
+
+  // Load chat from URL param whenever it changes
+  useEffect(() => {
+    const paramChatId = searchParams.get('chatId')
+    const newChatParam = searchParams.get('newChat')
+
+    if (newChatParam) {
+      setChatId(null)
+      setIsNewChat(true)
+      setMessages([WELCOME])
+      saveSession(null, [WELCOME])
+      setIsExpanded(true)
+      setSearchParams({})
+    } else if (paramChatId) {
+      handleLoadChat(paramChatId)
+      setSearchParams({})
+    }
+  }, [searchParams, handleLoadChat, setSearchParams])
 
   const handleSend = async (text?: string) => {
     const query = text ?? input
     if (!query.trim()) return
 
     setIsExpanded(true)
-
     if (text) setInput(text)
 
     const userMessage: Message = { role: 'user', content: query }
@@ -142,6 +152,8 @@ export default function AskClio() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: query }),
       })
+
+      if (!response.ok) throw new Error('Request failed')
 
       const data = await response.json()
       const assistantMessage: Message = {
@@ -185,10 +197,9 @@ export default function AskClio() {
               onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--clio-glass)')}
               onClick={() => {
                 setChatId(null)
-                setMessages([{
-                  role: 'assistant',
-                  content: "I'm your finance assistant. I can break down spending, flag unusual transactions, and help you hit your goals. Ask me anything.",
-                }])
+                setIsNewChat(true)
+                setMessages([WELCOME])
+                saveSession(null, [WELCOME])
               }}
               title="New chat"
             >

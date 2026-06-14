@@ -3,6 +3,7 @@ import { useStatements } from '../../context/StatementContext'
 import { LuSearch, LuSlidersHorizontal, LuArrowUpDown, LuX } from 'react-icons/lu'
 import { FaCheck } from 'react-icons/fa'
 import { MdEdit } from "react-icons/md";
+import { BsBank2 } from "react-icons/bs";
 
 interface Transaction {
   transaction_id: number
@@ -265,10 +266,18 @@ export default function Transactions() {
             if (!stmt) return null
             return (
               <div
-                className="flex items-center gap-2 rounded-xl shadow-sm shrink-0"
-                style={{ ...btnStyle, padding: '7px 12px', maxWidth: '220px' }}
+                className="flex items-center gap-3 px-3 py-2 rounded-2xl border border-white shadow-sm shrink-0"
+                style={{ background: 'linear-gradient(135deg, var(--clio-glass) 0%, rgba(255,255,255,0.7) 100%)' }}
               >
-                <span className="text-[13px] text-gray-600 truncate">{formatLabel(stmt)}</span>
+                <div
+                  className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: 'var(--clio-primary)', color: 'var(--clio-primary-foreground)' }}
+                >
+                  <BsBank2 size={11} />
+                </div>
+                <span className="text-[13px] font-medium text-gray-700 truncate" style={{ maxWidth: '260px' }}>
+                  {formatLabel(stmt)}
+                </span>
               </div>
             )
           })()}

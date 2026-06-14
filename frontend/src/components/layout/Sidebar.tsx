@@ -8,7 +8,6 @@ import {
 import { RiPieChartLine } from 'react-icons/ri'
 import { useRef, useState, useEffect } from 'react'
 import { useStatements } from '../../context/StatementContext'
-import { FaCircleArrowDown } from "react-icons/fa6";
 
 const navItems = [
   { name: 'Dashboard',    path: '/dashboard',    icon: <MdOutlineDashboard /> },
@@ -22,13 +21,6 @@ const navItems = [
 function formatLabel(s: { bank_name: string; account_type: string; period_end: string }) {
   const date = new Date(s.period_end).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
   return `${s.bank_name} ${s.account_type} — ${date}`
-}
-
-interface User {
-  id: number
-  email: string
-  firstName: string
-  lastName: string
 }
 
 interface Chat {
@@ -65,27 +57,20 @@ function SectionHeader({
 
 export default function Sidebar() {
   const navigate = useNavigate()
-  const { statements, selectedId, setSelectedId, isLoading, reload } = useStatements()
+  const { statements, selectedId, setSelectedId, isLoading, reload, user } = useStatements()
 
   const [menuOpen, setMenuOpen]               = useState(false)
   const [chatsOpen, setChatsOpen]             = useState(true)
   const [uploading, setUploading]             = useState(false)
-  const [user, setUser]                       = useState<User | null>(null)
   const [chats, setChats]                     = useState<Chat[]>([])
   const [statementPickerOpen, setStatementPickerOpen] = useState(false)
   const [activeChatId, setActiveChatId]       = useState<number | null>(null)
   const [canScrollChats, setCanScrollChats]   = useState(false)
+  const [uploadError, setUploadError]         = useState<string | null>(null)
 
   const fileInputRef       = useRef<HTMLInputElement>(null)
   const statementPickerRef = useRef<HTMLDivElement>(null)
   const chatListRef        = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    fetch('/api/auth/me')
-      .then(r => r.json())
-      .then(data => { if (data.ok) setUser(data.user) })
-      .catch(err => console.error('Failed to fetch user', err))
-  }, [])
 
   useEffect(() => {
     fetch('/api/chat/history')
@@ -150,7 +135,8 @@ export default function Sidebar() {
   const handleDeleteChat = async (chatId: number, e: React.MouseEvent) => {
     e.stopPropagation()
     try {
-      await fetch(`/api/chat?chatId=${chatId}`, { method: 'DELETE' })
+      const res = await fetch(`/api/chat?chatId=${chatId}`, { method: 'DELETE' })
+      if (!res.ok) { console.error('Failed to delete chat', await res.json()); return }
       setChats(prev => prev.filter(c => c.chat_id !== chatId))
       if (chatId === activeChatId) {
         window.dispatchEvent(new Event('chat-reset'))
@@ -164,12 +150,13 @@ export default function Sidebar() {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
+    setUploadError(null)
     try {
       const formData = new FormData()
       formData.append('file', file)
       const res = await fetch('/api/statement/upload', { method: 'POST', body: formData })
       const result = await res.json()
-      if (!res.ok) { alert(result.error ?? 'Upload failed'); return }
+      if (!res.ok) { setUploadError(result.error ?? 'Upload failed'); return }
       const statementId: number = result.statementId
       await pollUntilComplete(statementId)
       await reload()
@@ -250,22 +237,22 @@ export default function Sidebar() {
                 className="flex flex-col gap-0.5 max-h-40 overflow-y-auto mt-0.5 px-1"
               >
                 {chats.length === 0 ? (
-                  <p className="px-3 py-1.5 text-[12px] text-clio-muted-foreground italic">No chats yet</p>
+                  <p className="px-3 py-1.5 text-[12px]! text-clio-muted-foreground italic">No chats yet</p>
                 ) : chats.map(chat => (
                   <div
                     key={chat.chat_id}
-                    className="group flex items-center gap-1 rounded-lg hover:bg-gray-200 pl-2 transition-colors"
+                    className="group flex items-center gap-1 rounded-lg hover:bg-gray-400/50 transition-colors"
                   >
                     <button
                       onClick={() => navigate(`/dashboard?chatId=${chat.chat_id}`)}
-                      className="flex-1 flex items-center gap-2 px-3 py-1.5 text-[12px]! truncate text-left text-clio-foreground-70 hover:text-gray-800 min-w-0"
+                      className="flex-1 flex items-center gap-2 px-3 py-1.5 text-[12px]! truncate text-left text-clio-foreground-70 hover:text-gray-800 min-w-0. ml-2"
                     >
                       <LuMessageSquare size={13} className="shrink-0 opacity-50" />
                       <span className="truncate">{chat.title}</span>
                     </button>
                     <button
                       onClick={e => handleDeleteChat(chat.chat_id, e)}
-                      className="shrink-0 w-6 h-6 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 hover:bg-red-50 mr-1"
+                      className="shrink-0 w-6 h-6 flex items-center justify-center rounded-md group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 hover:bg-red-50 mr-1"
                       title="Delete chat"
                     >
                       <LuTrash2 size={11} />
@@ -274,8 +261,8 @@ export default function Sidebar() {
                 ))}
               </div>
               {canScrollChats && (
-                <div className="flex justify-center py-2 pointer-events-none">
-                  <span className="animate-bounce text-gray-400 text-[13px]"><FaCircleArrowDown /></span>
+                <div className="flex justify-center py-0.5 pointer-events-none">
+                  <span className="animate-bounce text-gray-300 text-[10px]">▼</span>
                 </div>
               )}
             </div>
@@ -289,10 +276,10 @@ export default function Sidebar() {
         {/* ── Statement selector card ────────────────────────────────────── */}
         <div className="rounded-2xl p-3.5 bg-glass-inset border border-clio-glass-border shadow-sm flex flex-col gap-2 shrink-0 mx-0.5 mb-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px]! uppercase tracking-widest text-clio-muted-foreground">Statement</span>
+            <span className="text-[11px] uppercase tracking-widest text-clio-muted-foreground">Statement</span>
             <div className="flex items-center gap-1.5">
               {statements.some(s => s.current_status === 'processing' || s.current_status === 'queued') && (
-                <span className="text-[11px]! text-amber-500 flex items-center gap-1">
+                <span className="text-[11px] text-amber-500 flex items-center gap-1">
                   <LuLoader size={10} className="animate-spin" />
                   {statements.filter(s => s.current_status !== 'complete' && s.current_status !== 'failed').length}
                 </span>
@@ -308,6 +295,10 @@ export default function Sidebar() {
               </button>
             </div>
           </div>
+
+          {uploadError && (
+            <p className="text-[11px] text-red-500">{uploadError}</p>
+          )}
 
           {/* Dropdown */}
           <div className="relative" ref={statementPickerRef}>
@@ -327,7 +318,7 @@ export default function Sidebar() {
 
             {statementPickerOpen && (
               <div
-                className="absolute left-0 right-0 flex flex-col gap-2 z-20 p-3 bottom-full mb-1 rounded-xl border border-clio-glass-border shadow-lg overflow-hidden max-h-48 overflow-y-auto"
+                className="absolute p-2 flex flex-col gap-2 left-0 right-0 z-20 bottom-full mb-1 rounded-xl border border-clio-glass-border shadow-lg overflow-hidden max-h-48 overflow-y-auto"
                 style={{ backgroundColor: 'white' }}
               >
                 {completeStatements.map(s => {
@@ -336,7 +327,7 @@ export default function Sidebar() {
                     <button
                       key={s.statement_id}
                       onClick={() => { setSelectedId(s.statement_id); setStatementPickerOpen(false) }}
-                      className="w-full flex items-center justify-between gap-2 px-3 py-2 text-[12px]! text-left rounded-xl"
+                      className="w-full flex items-center justify-between gap-2 px-4 py-3 text-[12px]! text-left rounded-xl"
                       style={{
                         backgroundColor: isSelected ? '#f3f4f6' : 'white',
                         color: '#374151',

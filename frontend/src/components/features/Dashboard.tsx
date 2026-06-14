@@ -27,22 +27,15 @@ function formatLabel(s: { bank_name: string; account_type: string; period_end: s
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { selectedId, statements } = useStatements()
+  const { selectedId, statements, user } = useStatements()
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [categories, setCategories] = useState<CategorySpend[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [user, setUser] = useState<{ firstName: string; email: string } | null>(null)
 
   const activeStatement = statements.find(s => s.statement_id === selectedId)
 
-  useEffect(() => {
-    fetch('/api/auth/me')
-      .then(r => r.json())
-      .then(data => { if (data.ok) setUser(data.user) })
-      .catch(err => console.error('Failed to fetch user', err))
-  }, [])
-
+  // Derive display name from context user — no extra fetch needed
   const displayName = !user || user.email === 'demo@clio.ai' ? 'Guest' : user.firstName
 
   useEffect(() => {
@@ -88,10 +81,14 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3">
           {activeStatement && (
-            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-white shadow-sm"
-              style={{ background: 'linear-gradient(135deg, var(--clio-glass) 0%, rgba(255,255,255,0.7) 100%)' }}>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                style={{ backgroundColor: 'var(--clio-primary)', color: 'var(--clio-primary-foreground)' }}>
+            <div
+              className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-white shadow-sm"
+              style={{ background: 'linear-gradient(135deg, var(--clio-glass) 0%, rgba(255,255,255,0.7) 100%)' }}
+            >
+              <div
+                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: 'var(--clio-primary)', color: 'var(--clio-primary-foreground)' }}
+              >
                 <BsBank2 size={14} />
               </div>
               <div>
@@ -107,10 +104,11 @@ export default function Dashboard() {
 
       {isLoading ? (
         <div className="text-sm text-gray-400">Loading…</div>
-      ) : summary ? (
+      ) : summary && selectedId ? (
         <div className="grid grid-cols-2 gap-4">
           <ContentCard title="Total Income" amount={formatCurrency(summary.total_income)} />
-          <NetThisMonthCard statementId={selectedId!} accountId={activeStatement?.account_id ?? 0} />
+          {/* Guard: only render NetThisMonthCard when selectedId is guaranteed non-null */}
+          <NetThisMonthCard statementId={selectedId} accountId={activeStatement?.account_id ?? 0} />
         </div>
       ) : (
         <div className="text-sm text-gray-400">

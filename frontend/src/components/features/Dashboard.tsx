@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import AskClio from '../layout/AskClio'
-import ContentCard from '../layout/ContentCard'
-import Section from '../layout/Section'
+import SectionHeader from '../layout/SectionHeader'
 import CategoryRow from '../layout/CategoryRow'
 import NetThisMonthCard from '../layout/NetThisMonthCard'
+import TotalSpendingCard from '../layout/TotalSpendingCard'
+import GoalCard from '../layout/GoalCard'
 import { useStatements } from '../../context/StatementContext'
 import { useNavigate } from 'react-router-dom'
 import { BsBank2 } from 'react-icons/bs'
@@ -20,6 +21,14 @@ interface CategorySpend {
   spent: number
 }
 
+interface Goal {
+  goal_id: number
+  title: string
+  target_amount: number
+  saved_amount: number
+  deadline: string | null
+}
+
 function formatLabel(s: { bank_name: string; account_type: string; period_end: string }) {
   const date = new Date(s.period_end).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
   return `${s.bank_name} ${s.account_type} — ${date}`
@@ -32,10 +41,10 @@ export default function Dashboard() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [categories, setCategories] = useState<CategorySpend[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [goals, setGoals] = useState<Goal[]>([])
 
   const activeStatement = statements.find(s => s.statement_id === selectedId)
 
-  // Derive display name from context user — no extra fetch needed
   const displayName = !user || user.email === 'demo@clio.ai' ? 'Guest' : user.firstName
 
   useEffect(() => {
@@ -60,8 +69,18 @@ export default function Dashboard() {
     fetchDashboardData()
   }, [selectedId])
 
-  const formatCurrency = (n: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
+  useEffect(() => {
+    const fetchGoals = async () => {
+      try {
+        const res = await fetch('/api/goals')
+        const result = await res.json()
+        setGoals(result.data)
+      } catch {
+        console.error('Failed to fetch goals')
+      }
+    }
+    fetchGoals()
+  }, [])
 
   const categoryColors = [
     '#ef4444', '#ec4899', '#f97316', '#3b82f6',
@@ -106,9 +125,8 @@ export default function Dashboard() {
         <div className="text-sm text-gray-400">Loading…</div>
       ) : summary && selectedId ? (
         <div className="grid grid-cols-2 gap-4">
-          <ContentCard title="Total Income" amount={formatCurrency(summary.total_income)} />
-          {/* Guard: only render NetThisMonthCard when selectedId is guaranteed non-null */}
-          <NetThisMonthCard statementId={selectedId} accountId={activeStatement?.account_id ?? 0} />
+          <TotalSpendingCard statementId={selectedId} totalExpenses={summary.total_expenses} linkText='Transactions' onLinkClick={() => navigate('/transactions')} />
+          <NetThisMonthCard statementId={selectedId} accountId={activeStatement?.account_id ?? 0} linkText='Cash Flow' onLinkClick={() => navigate('/transactions')} />
         </div>
       ) : (
         <div className="text-sm text-gray-400">
@@ -119,8 +137,13 @@ export default function Dashboard() {
       )}
 
       {categories.length > 0 && (
-        <Section title="Top Categories" linkText="View All" onLinkClick={() => navigate('/categories')}>
-          <div className="grid grid-cols-2">
+        <div className="bg-clio-glass shadow-sm rounded-2xl border-white p-6">
+          <SectionHeader
+            title="Top Categories"
+            linkText="View All"
+            onLinkClick={() => navigate('/categories')}
+          />
+          <div className="grid grid-cols-2 gap-3">
             {categories.slice(0, 6).map((c, i) => (
               <CategoryRow
                 key={c.category_id}
@@ -131,7 +154,28 @@ export default function Dashboard() {
               />
             ))}
           </div>
-        </Section>
+        </div>
+      )}
+
+      {goals.length > 0 && (
+        <div className="bg-clio-glass shadow-sm rounded-2xl border-white p-6">
+          <SectionHeader
+            title="Goals"
+            linkText="All Goals"
+            onLinkClick={() => navigate('/goals')}
+          />
+          <div className="grid grid-cols-3 gap-4">
+            {goals.slice(0, 3).map(g => (
+              <GoalCard
+                key={g.goal_id}
+                title={g.title}
+                savedAmount={Number(g.saved_amount)}
+                targetAmount={Number(g.target_amount)}
+                deadline={g.deadline}
+              />
+            ))}
+          </div>
+        </div>
       )}
 
     </div>

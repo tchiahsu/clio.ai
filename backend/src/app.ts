@@ -9,6 +9,8 @@ import { accountRouter } from "./api/accounts/routes.js";
 import { chatRouter } from "./api/chat/routes.js";
 import { statementRouter } from "./api/statements/routes.js";
 import authRouter from "./api/auth/routes.js";
+import { budgetRouter } from "./api/budgets/routes.js";
+import { goalRouter } from "./api/goals/routes.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 
 export const app = express();
@@ -38,6 +40,9 @@ app.use("/auth", authRouter);
 // app.use("/accounts", requireAuth, accountRouter);
 // app.use("/chat", requireAuth, chatRouter);
 // app.use("/statement", requireAuth, statementRouter);
+// app.use("/budgets", requireAuth, budgetRouter);
+// app.use("/goals", requireAuth, goalRouter);
+
 
 // BYPASSING AUTH FOR DESIGN PURPOSES (DELETE THIS LATER!!!)
 app.use("/dashboard", dashboardRouter);
@@ -47,5 +52,7 @@ app.use("/categories", categoriesRouter);
 app.use("/accounts", accountRouter);
 app.use("/chat", chatRouter);
 app.use("/statement", statementRouter);
+app.use("/budgets", budgetRouter);
+app.use("/goals", goalRouter);
 
 export default app;

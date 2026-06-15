@@ -11,7 +11,7 @@ export default function SectionHeader({ title, linkText, onLinkClick }: SectionH
       {linkText && (
         <button
           onClick={onLinkClick}
-          className="text-xs! uppercase tracking-widest text-gray-400 hover:text-gray-600 hover:underline transition-colors"
+          className="text-xs! uppercase tracking-widest text-gray-400 hover:text-gray-600 transition-colors"
           >
             {linkText} ↗
           </button>

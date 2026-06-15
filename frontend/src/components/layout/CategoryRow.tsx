@@ -13,7 +13,7 @@ export default function CategoryRow({ label, spent, budget, color }: CategoryRow
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
 
   return (
-    <div className="bg-clio-glass shadow-smrounded-2xl p-5 flex flex-col gap-3">
+    <div className="rounded-2xl p-5 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <span className="text-[13px] uppercase font-semibold text-gray-800">{label}</span>
         <span

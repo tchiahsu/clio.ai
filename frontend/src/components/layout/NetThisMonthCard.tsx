@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import SectionHeader from '../layout/SectionHeader';
 
 interface DailyTotal {
   transaction_date: string
@@ -17,6 +18,8 @@ interface BudgetOverview {
 interface NetThisMonthCardProps {
   statementId: number
   accountId: number
+  linkText: string
+  onLinkClick?: () => void
 }
 
 interface TooltipProps {
@@ -25,7 +28,7 @@ interface TooltipProps {
   label?: string
 }
 
-export default function NetThisMonthCard({ statementId, accountId }: NetThisMonthCardProps) {
+export default function NetThisMonthCard({ statementId, accountId, linkText, onLinkClick }: NetThisMonthCardProps) {
   const [dailyData, setDailyData] = useState<DailyTotal[]>([])
   const [overview, setOverview] = useState<BudgetOverview[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -95,10 +98,8 @@ export default function NetThisMonthCard({ statementId, accountId }: NetThisMont
 
   return (
     <div className="bg-clio-glass shadow-sm border-white rounded-2xl p-6 flex flex-col gap-3">
+      <SectionHeader title="Net This Month" linkText={linkText} onLinkClick={onLinkClick} />
       <div>
-        <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-2">
-          Net this month
-        </p>
         <div className="flex items-baseline gap-1">
           <span className="text-4xl font-bold text-gray-900">
             {isNegative ? '-' : ''}${netWhole}

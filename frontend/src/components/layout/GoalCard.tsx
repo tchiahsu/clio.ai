@@ -1,11 +1,18 @@
+import { LuTarget, LuPlus, LuTrash2 } from 'react-icons/lu'
+
 interface GoalCardProps {
   title: string
   savedAmount: number
   targetAmount: number
   deadline?: string | null
+  showIcon?: boolean      
+  showAddFunds?: boolean 
+  onAddFunds?: () => void
+  showDelete?: boolean
+  onDelete?: () => void
 }
 
-export default function GoalCard({ title, savedAmount, targetAmount, deadline }: GoalCardProps) {
+export default function GoalCard({ title, savedAmount, targetAmount, deadline, showIcon, showAddFunds, onAddFunds, showDelete, onDelete }: GoalCardProps) {
   const percentage = Math.min((savedAmount / targetAmount) * 100, 100)
 
   const formatCurrency = (n: number) =>
@@ -15,12 +22,15 @@ export default function GoalCard({ title, savedAmount, targetAmount, deadline }:
     <div className="bg-clio-glass shadow-sm border-white rounded-2xl p-5 flex flex-col gap-3">
 
       <div className="flex items-center gap-2">
-        <p className="text-[14px] font-medium text-gray-700">{title}</p>
-        {deadline && (
-          <span className="text-[11px] text-gray-400">
-            by {new Date(deadline).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-          </span>
-        )}
+        {showIcon && <LuTarget size={16} style={{ color: '#1a1f36' }} className="text-gray-400" />}
+        <p className="text-[14px] font-medium text-gray-700">
+          {title}
+          {deadline && (
+            <span className="text-[11px] text-gray-400 ml-1">
+              · by {new Date(deadline).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+            </span>
+          )}
+        </p>
       </div>
 
       <div>
@@ -37,6 +47,27 @@ export default function GoalCard({ title, savedAmount, targetAmount, deadline }:
           />
         </div>
         <span className="text-[12px] text-gray-400 shrink-0">{Math.round(percentage)}%</span>
+      </div>
+
+      <div className="flex items-center justify-between">
+        {showAddFunds && (
+          <button
+            onClick={onAddFunds}
+            className="flex items-center gap-1 text-[13px] text-gray-600 hover:text-gray-900 transition-colors"
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+          >
+            <LuPlus size={14} /> Add funds
+          </button>
+        )}
+        {showDelete && (
+          <button
+            onClick={onDelete}
+            className="flex items-center gap-1 text-[13px] text-red-400 hover:text-red-600 transition-colors"
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+          >
+            <LuTrash2 size={14} /> Delete
+          </button>
+        )}
       </div>
 
     </div>

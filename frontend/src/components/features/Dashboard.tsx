@@ -29,6 +29,13 @@ interface Goal {
   deadline: string | null
 }
 
+interface BudgetItem {
+  category_id: number
+  category_name: string
+  budgeted: number
+  spent: number
+}
+
 function formatLabel(s: { bank_name: string; account_type: string; period_end: string }) {
   const date = new Date(s.period_end).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
   return `${s.bank_name} ${s.account_type} — ${date}`
@@ -42,6 +49,7 @@ export default function Dashboard() {
   const [categories, setCategories] = useState<CategorySpend[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [goals, setGoals] = useState<Goal[]>([])
+  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([])
 
   const activeStatement = statements.find(s => s.statement_id === selectedId)
 
@@ -52,14 +60,17 @@ export default function Dashboard() {
     const fetchDashboardData = async () => {
       setIsLoading(true)
       try {
-        const [summaryRes, categoriesRes] = await Promise.all([
+        const [summaryRes, categoriesRes, budgetsRes] = await Promise.all([
           fetch(`/api/dashboard/totals?statementId=${selectedId}`),
           fetch(`/api/dashboard/categories?statementId=${selectedId}`),
+          fetch(`/api/budgets?statementId=${selectedId}`),
         ])
         const summaryData = await summaryRes.json()
         const categoriesData = await categoriesRes.json()
+        const budgetsData = await budgetsRes.json()
         setSummary(summaryData.data)
         setCategories(categoriesData.data)
+        setBudgetItems(budgetsData.data)
       } catch (err) {
         console.error('Failed to fetch dashboard data', err)
       } finally {
@@ -88,7 +99,15 @@ export default function Dashboard() {
     '#1a1a1a', '#a855f7',
   ]
 
-  const maxSpent = Math.max(...categories.map(c => Number(c.spent)), 1) * 1.1
+  const mergedCategories = categories.map(c => {
+    const budgetItem = budgetItems.find(
+      b => b.category_name?.toLowerCase() === c.category_name?.toLowerCase()
+    )
+    return {
+      ...c,
+      budgeted: budgetItem ? Number(budgetItem.budgeted) : Number(c.spent) * 1.1,
+    }
+  })
 
   return (
     <div className="w-full h-full flex flex-col gap-6 p-2">
@@ -143,13 +162,13 @@ export default function Dashboard() {
             linkText="View All"
             onLinkClick={() => navigate('/categories')}
           />
-          <div className="grid grid-cols-2 gap-3">
-            {categories.slice(0, 6).map((c, i) => (
+          <div className="grid grid-cols-2">
+            {mergedCategories.slice(0, 6).map((c, i) => (
               <CategoryRow
                 key={c.category_id}
                 label={c.category_name ?? 'Uncategorized'}
                 spent={Number(c.spent)}
-                budget={maxSpent}
+                budget={c.budgeted}
                 color={categoryColors[i % categoryColors.length]}
               />
             ))}

@@ -7,19 +7,22 @@ export async function sqlGetBudgets(pool: Pool, userId: number, statementId: num
     const res = await pool.query(
         `
         SELECT 
-            b.budget_id,
-            b.category_id,
-            c.category_name,
-            c.subcategory_name,
-            b.amount AS budgeted,
+            cat_budgets.category_name,
+            cat_budgets.category_id,
+            cat_budgets.budgeted,
             COALESCE(SUM(CASE WHEN t.amount < 0 THEN -t.amount ELSE 0 END), 0) AS spent
-        FROM budgets b
-        JOIN categories c ON c.category_id = b.category_id
-        LEFT JOIN transactions t ON t.category_id = b.category_id
+        FROM (
+            SELECT c.category_name, MIN(c.category_id) AS category_id, SUM(b.amount) AS budgeted
+            FROM budgets b
+            JOIN categories c ON c.category_id = b.category_id
+            WHERE b.user_id = $1 AND b.statement_id = $2
+            GROUP BY c.category_name
+        ) cat_budgets
+        LEFT JOIN categories c ON c.category_name = cat_budgets.category_name AND c.user_id = $1
+        LEFT JOIN transactions t ON t.category_id = c.category_id
             AND t.statement_id = $2
             AND t.user_id = $1
-        WHERE b.user_id = $1 AND b.statement_id = $2
-        GROUP BY b.budget_id, b.category_id, c.category_name, c.subcategory_name, b.amount
+        GROUP BY cat_budgets.category_name, cat_budgets.category_id, cat_budgets.budgeted
         ORDER BY spent DESC
         `,
         [userId, statementId]

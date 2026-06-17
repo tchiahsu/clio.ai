@@ -41,11 +41,16 @@ export async function sqlDashboardSummaryForStatement(pool: Pool, userId: number
 export async function sqlDashboardCategorySpendForStatement(pool: Pool, userId: number, statementId: number) {
     const res = await pool.query(
         `
-        SELECT c.category_id, c.category_name, COALESCE(SUM(CASE WHEN t.amount < 0 THEN -t.amount ELSE 0 END), 0) AS spent
-        FROM transactions t
-        LEFT JOIN categories c ON c.category_id = t.category_id
-        WHERE t.user_id = $1 AND t.statement_id = $2
-        GROUP BY c.category_id, c.category_name
+        SELECT c.category_name,
+            SUM(b.amount) AS budgeted,
+            COALESCE(SUM(CASE WHEN t.amount < 0 THEN -t.amount ELSE 0 END), 0) AS spent
+        FROM budgets b
+        JOIN categories c ON c.category_id = b.category_id
+        LEFT JOIN transactions t ON t.category_id = b.category_id
+            AND t.statement_id = $2
+            AND t.user_id = $1
+        WHERE b.user_id = $1 AND b.statement_id = $2
+        GROUP BY c.category_name
         ORDER BY spent DESC
         `,
         [userId, statementId]
@@ -108,7 +113,7 @@ export async function sqlBudgetOverview (pool: Pool, userId: number, accountId: 
             ORDER BY period_start DESC
             LIMIT 2
         )
-        SELECT to_char(t.period_start, 'YYYY-MM-DD') AS date, total_income, total_expenses, 
+        SELECT t.statement_id, to_char(t.period_start, 'YYYY-MM-DD') AS date, total_income, total_expenses, 
             total_income - total_expenses AS savings 
         FROM statement_summary ss
         JOIN t ON ss.statement_id = t.statement_id

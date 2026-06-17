@@ -6,10 +6,13 @@ import { Pool } from "pg";
 export async function sqlAllAccountsList(pool: Pool, userId: number) {
     const res = await pool.query(
         `
-        SELECT account_id, bank_name, account_type
-        FROM accounts
-        WHERE user_id = $1
-        ORDER BY account_id DESC
+        SELECT a.account_id, a.bank_name, a.account_type, a.account_number,
+            COALESCE(SUM(t.amount), 0) AS account_total
+        FROM accounts a
+        LEFT JOIN transactions t ON t.account_id = a.account_id
+        WHERE a.user_id = $1
+        GROUP BY a.account_id, a.bank_name, a.account_type, a.account_number
+        ORDER BY a.account_id DESC
         `,
         [userId]
     );
@@ -23,14 +26,23 @@ export async function sqlAllAccountsList(pool: Pool, userId: number) {
 export async function sqlAccountSummary(pool: Pool, accountId: number, userId: number) {
     const res = await pool.query(
         `
-        SELECT
+       SELECT
             COALESCE(SUM(t.amount), 0) AS account_total,
-            a.account_number
+            COALESCE(SUM(CASE WHEN t.amount < 0 
+                AND DATE_TRUNC('month', t.transaction_date) = (
+                    SELECT DATE_TRUNC('month', MAX(t2.transaction_date))
+                    FROM transactions t2
+                    WHERE t2.account_id = $1 AND t2.user_id = $2
+                )
+                THEN -t.amount ELSE 0 END), 0) AS spent_this_month,
+            a.account_number,
+            a.bank_name,
+            a.account_type
         FROM accounts a
         LEFT JOIN transactions t ON t.account_id = a.account_id
         WHERE a.account_id = $1
-          AND a.user_id = $2
-        GROUP BY a.account_number
+        AND a.user_id = $2
+        GROUP BY a.account_number, a.bank_name, a.account_type
         `,
         [accountId, userId]
     );

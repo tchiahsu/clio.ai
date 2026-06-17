@@ -181,7 +181,7 @@ export default function Dashboard() {
           <SectionHeader
             title="Goals"
             linkText="All Goals"
-            onLinkClick={() => navigate('/goals')}
+            onLinkClick={() => navigate('/budgets')}
           />
           <div className="grid grid-cols-3 gap-4">
             {goals.slice(0, 3).map(g => (

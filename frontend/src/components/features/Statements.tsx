@@ -1,20 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { useStatements } from '../../context/StatementContext'
+import { useStatements, type Statement } from '../../context/StatementContext'
 import { useNavigate } from 'react-router-dom'
-import { LuUpload, LuFileText, LuTrash2, LuPencil, LuCheck, LuX, LuLoader } from 'react-icons/lu'
-
-interface Statement {
-  statement_id: number
-  account_id: number
-  file_name: string
-  period_start: string
-  period_end: string
-  current_status: string
-  bank_name: string
-  account_number: string
-  account_type: string
-  uploaded_at?: string
-}
+import { LuUpload, LuFileText, LuTrash2, LuLoader } from 'react-icons/lu'
 
 interface GroupedStatements {
   [year: string]: Statement[]
@@ -32,29 +19,17 @@ function formatUploadDate(s: Statement) {
 
 export default function Statements() {
   const navigate = useNavigate()
-  const { setSelectedId } = useStatements()
+  // Read statements from the shared context so this page stays in sync with the
+  // sidebar selector — upload/delete here go through reload(), and the context
+  // reconciles the selection when a statement disappears.
+  const { statements, isLoading, setSelectedId, reload } = useStatements()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [statements, setStatements] = useState<Statement[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [editingName, setEditingName] = useState('')
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
-  const fetchStatements = async () => {
-    try {
-      const res = await fetch('/api/statement/list')
-      const data = await res.json()
-      if (data.data) setStatements(data.data)
-    } catch (err) {
-      console.error('Failed to fetch statements', err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  useEffect(() => { fetchStatements() }, [])
+  // Refresh on mount in case statements changed elsewhere (e.g. account deletion).
+  useEffect(() => { reload() }, [])
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -71,11 +46,12 @@ export default function Statements() {
       for (let i = 0; i < 30; i++) {
         await new Promise(r => setTimeout(r, 2000))
         const statusRes = await fetch(`/api/statement/status?statementId=${statementId}`)
+        if (!statusRes.ok) continue
         const statusData = await statusRes.json()
         const status = statusData.data?.current_status
         if (status === 'complete' || status === 'failed') break
       }
-      await fetchStatements()
+      await reload()
     } catch (err) {
       console.error('Upload failed', err)
     } finally {
@@ -89,22 +65,14 @@ export default function Statements() {
     setDeletingId(statementId)
     try {
       await fetch(`/api/statement?statementId=${statementId}`, { method: 'DELETE' })
-      setStatements(prev => prev.filter(s => s.statement_id !== statementId))
+      // Refresh shared state; the context clears/reselects selectedId if the
+      // deleted statement was the active one, keeping the sidebar in sync.
+      await reload()
     } catch (err) {
       console.error('Delete failed', err)
     } finally {
       setDeletingId(null)
     }
-  }
-
-  const startRename = (s: Statement) => {
-    setEditingId(s.statement_id)
-    setEditingName(formatLabel(s))
-  }
-
-  const cancelRename = () => {
-    setEditingId(null)
-    setEditingName('')
   }
 
   // Group statements by year of period_end, newest year first
@@ -210,65 +178,30 @@ export default function Statements() {
                 <div key={s.statement_id}>
                   {i > 0 && <div className="h-px bg-gray-100 mx-1 my-1" />}
 
-                  {editingId === s.statement_id ? (
-                    /* Rename row */
-                    <div className="flex items-center gap-3 px-2 py-2.5">
-                      <LuFileText size={16} className="text-gray-400 shrink-0" />
-                      <input
-                        autoFocus
-                        value={editingName}
-                        onChange={e => setEditingName(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') cancelRename(); if (e.key === 'Escape') cancelRename() }}
-                        className="flex-1 text-[14px] rounded-lg px-2 py-1 border border-clio-glass-border bg-white outline-none"
-                      />
-                      <button
-                        onClick={cancelRename}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-green-500 hover:bg-green-50 transition-colors"
-                      >
-                        <LuCheck size={14} />
-                      </button>
-                      <button
-                        onClick={cancelRename}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
-                      >
-                        <LuX size={14} />
-                      </button>
+                  <div
+                    className="flex items-center gap-3 px-2 py-2.5 rounded-xl cursor-pointer transition-colors hover:bg-white/60"
+                    onClick={() => { setSelectedId(s.statement_id); navigate('/transactions') }}
+                  >
+                    <LuFileText size={16} className="text-gray-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[14px] font-medium text-gray-800 truncate">
+                        {formatLabel(s)}
+                      </div>
+                      <div className="text-[12px] text-gray-400">
+                        Uploaded {formatUploadDate(s)}
+                      </div>
                     </div>
-                  ) : (
-                    /* Normal row */
-                    <div
-                      className="flex items-center gap-3 px-2 py-2.5 rounded-xl cursor-pointer transition-colors hover:bg-white/60"
-                      onClick={() => { setSelectedId(s.statement_id); navigate('/transactions') }}
+                    <button
+                      onClick={e => { e.stopPropagation(); handleDelete(s.statement_id) }}
+                      disabled={deletingId === s.statement_id}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
                     >
-                      <LuFileText size={16} className="text-gray-400 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[14px] font-medium text-gray-800 truncate">
-                          {formatLabel(s)}
-                        </div>
-                        <div className="text-[12px] text-gray-400">
-                          Uploaded {formatUploadDate(s)}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={e => { e.stopPropagation(); startRename(s) }}
-                          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                        >
-                          <LuPencil size={13} />
-                        </button>
-                        <button
-                          onClick={e => { e.stopPropagation(); handleDelete(s.statement_id) }}
-                          disabled={deletingId === s.statement_id}
-                          className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
-                        >
-                          {deletingId === s.statement_id
-                            ? <LuLoader size={13} className="animate-spin" />
-                            : <LuTrash2 size={13} />
-                          }
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                      {deletingId === s.statement_id
+                        ? <LuLoader size={13} className="animate-spin" />
+                        : <LuTrash2 size={13} />
+                      }
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

@@ -83,9 +83,6 @@ INSERT INTO merchants (merchant_name) VALUES
 -- =========================
 -- CATEGORIES (per user, category + subcategory)
 -- =========================
- 
--- Helper: insert all categories for a given user_id
--- food
 INSERT INTO categories (user_id, category_name, subcategory_name) VALUES
 -- ---- TONY (user_id = 1) ----
 (1, 'food',          'fast_food'),
@@ -95,7 +92,6 @@ INSERT INTO categories (user_id, category_name, subcategory_name) VALUES
 (1, 'food',          'bakery'),
 (1, 'food',          'coffee'),
 (1, 'food',          'alcohol'),
--- transport
 (1, 'transport',     'fuel'),
 (1, 'transport',     'rideshare'),
 (1, 'transport',     'parking'),
@@ -104,38 +100,30 @@ INSERT INTO categories (user_id, category_name, subcategory_name) VALUES
 (1, 'transport',     'car_insurance'),
 (1, 'transport',     'car_maintenance'),
 (1, 'transport',     'transportation'),
--- shopping
 (1, 'shopping',      'shopping'),
 (1, 'shopping',      'clothing'),
 (1, 'shopping',      'electronics'),
 (1, 'shopping',      'home_goods'),
 (1, 'shopping',      'home_maintenance'),
 (1, 'shopping',      'personal_care'),
--- entertainment
 (1, 'entertainment', 'streaming'),
 (1, 'entertainment', 'music'),
 (1, 'entertainment', 'video_games'),
 (1, 'entertainment', 'entertainment'),
 (1, 'entertainment', 'events'),
--- subscriptions
 (1, 'subscriptions', 'software'),
 (1, 'subscriptions', 'cloud_services'),
 (1, 'subscriptions', 'subscriptions'),
--- health
 (1, 'health',        'pharmacy'),
 (1, 'health',        'healthcare'),
 (1, 'health',        'fitness'),
--- travel
 (1, 'travel',        'lodging'),
 (1, 'travel',        'flights'),
 (1, 'travel',        'travel'),
--- income
 (1, 'income',        'salary'),
 (1, 'income',        'interest'),
 (1, 'income',        'income'),
--- transfers
 (1, 'transfers',     'transfers'),
--- bills
 (1, 'bills',         'insurance'),
 (1, 'bills',         'utilities'),
 (1, 'bills',         'rent'),
@@ -144,15 +132,11 @@ INSERT INTO categories (user_id, category_name, subcategory_name) VALUES
 (1, 'bills',         'internet'),
 (1, 'bills',         'fees'),
 (1, 'bills',         'taxes'),
--- education
 (1, 'education',     'education'),
 (1, 'education',     'books'),
--- pets
 (1, 'pets',          'pets'),
--- giving
 (1, 'giving',        'donations'),
 (1, 'giving',        'gifts'),
--- misc
 (1, 'misc',          'misc'),
  
 -- ---- ALEX (user_id = 2) ----
@@ -266,25 +250,26 @@ INSERT INTO categories (user_id, category_name, subcategory_name) VALUES
 (3, 'misc',          'misc');
  
 -- =========================
--- STATEMENTS (14)
+-- STATEMENTS (8)
 -- =========================
+-- statement_id is pinned explicitly so the literal references in transactions,
+-- statement_summary and budgets stay valid after removing statements. Removed:
+-- ids 5, 6, 9, 12, 14 (no transactions/summary/budget data) and id 3 (Chase
+-- Checking Mar 2025) along with its transactions.
 INSERT INTO statements
-(user_id, account_id, period_start, period_end, file_name, file_hash, current_status, uploaded_at, parsed_at, error_message)
+(statement_id, user_id, account_id, period_start, period_end, file_name, file_hash, current_status, uploaded_at, parsed_at, error_message)
 VALUES
-(1, 1, '2025-01-01', '2025-01-31', 'chase_checking_2025_01.pdf', 'a1f3c2e9b4d87c6a5e2f9d1a4b6c7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b', 'complete',    '2025-02-02T09:12:00Z', '2025-02-02T09:13:20Z', NULL),
-(1, 1, '2025-02-01', '2025-02-28', 'chase_checking_2025_02.pdf', 'b2c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a1b2c3d4e5f6a7b8c9d0e1f2a',  'complete',    '2025-03-02T09:11:00Z', '2025-03-02T09:13:10Z', NULL),
-(1, 1, '2025-03-01', '2025-03-31', 'chase_checking_2025_03.pdf', 'c3d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a1b2c3d4e5f6a7b8c9d0e1f2a3b',  'processing',  '2025-04-02T09:11:00Z', NULL,                   NULL),
-(1, 2, '2025-01-01', '2025-01-31', 'amex_cc_2025_01.pdf',        'd4e6f7a8b9c0d1e2f3a4b5c6d7e8f9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c',  'complete',    '2025-02-01T20:10:00Z', '2025-02-01T20:12:10Z', NULL),
-(1, 2, '2025-02-01', '2025-02-28', 'amex_cc_2025_02.pdf',        'e5f7a8b9c0d1e2f3a4b5c6d7e8f9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d',  'failed',      '2025-03-01T20:10:00Z', NULL,                   'PDF parse failed: unsupported table layout'),
-(1, 2, NULL,         NULL,         'amex_cc_upload_pending.pdf',  'f6a8b9c0d1e2f3a4b5c6d7e8f9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e',  'queued',      '2025-03-15T18:33:00Z', NULL,                   NULL),
-(2, 3, '2025-01-01', '2025-01-31', 'bofa_checking_2025_01.pdf',  '01a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6',   'complete',    '2025-02-03T12:02:00Z', '2025-02-03T12:03:40Z', NULL),
-(2, 3, '2025-02-01', '2025-02-28', 'bofa_checking_2025_02.pdf',  '12b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7',   'complete',    '2025-03-03T12:02:00Z', '2025-03-03T12:03:35Z', NULL),
-(2, 4, '2025-01-01', '2025-01-31', 'cap1_cc_2025_01.pdf',        '23c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8',   'failed',      '2025-02-04T08:45:00Z', NULL,                   'CSV missing required columns: amount'),
-(2, 4, '2025-02-01', '2025-02-28', 'cap1_cc_2025_02.pdf',        '34d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809',   'complete',    '2025-03-04T08:45:00Z', '2025-03-04T08:47:10Z', NULL),
-(3, 5, '2025-01-01', '2025-01-31', 'wf_checking_2025_01.pdf',    '45e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a',   'complete',    '2025-02-05T15:01:00Z', '2025-02-05T15:04:00Z', NULL),
-(3, 5, '2025-02-01', '2025-02-28', 'wf_checking_2025_02.pdf',    '56f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b',   'processing',  '2025-03-05T15:01:00Z', NULL,                   NULL),
-(3, 6, '2025-01-01', '2025-01-31', 'discover_cc_2025_01.pdf',    '67f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3',    'complete',    '2025-02-06T18:22:00Z', '2025-02-06T18:24:30Z', NULL),
-(2, NULL, NULL,      NULL,         'unknown_bank_upload.pdf',     '78a91b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f708192a3b4c',    'queued',      '2025-03-10T11:12:00Z', NULL,                   NULL);
+(1,  1, 1, '2025-01-01', '2025-01-31', 'chase_checking_2025_01.pdf', 'a1f3c2e9b4d87c6a5e2f9d1a4b6c7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b', 'complete', '2025-02-02T09:12:00Z', '2025-02-02T09:13:20Z', NULL),
+(2,  1, 1, '2025-02-01', '2025-02-28', 'chase_checking_2025_02.pdf', 'b2c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a1b2c3d4e5f6a7b8c9d0e1f2a',  'complete', '2025-03-02T09:11:00Z', '2025-03-02T09:13:10Z', NULL),
+(4,  1, 2, '2025-01-01', '2025-01-31', 'amex_cc_2025_01.pdf',        'd4e6f7a8b9c0d1e2f3a4b5c6d7e8f9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c',  'complete', '2025-02-01T20:10:00Z', '2025-02-01T20:12:10Z', NULL),
+(7,  2, 3, '2025-01-01', '2025-01-31', 'bofa_checking_2025_01.pdf',  '01a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6',   'complete', '2025-02-03T12:02:00Z', '2025-02-03T12:03:40Z', NULL),
+(8,  2, 3, '2025-02-01', '2025-02-28', 'bofa_checking_2025_02.pdf',  '12b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7',   'complete', '2025-03-03T12:02:00Z', '2025-03-03T12:03:35Z', NULL),
+(10, 2, 4, '2025-02-01', '2025-02-28', 'cap1_cc_2025_02.pdf',        '34d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809',   'complete', '2025-03-04T08:45:00Z', '2025-03-04T08:47:10Z', NULL),
+(11, 3, 5, '2025-01-01', '2025-01-31', 'wf_checking_2025_01.pdf',    '45e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a',   'complete', '2025-02-05T15:01:00Z', '2025-02-05T15:04:00Z', NULL),
+(13, 3, 6, '2025-01-01', '2025-01-31', 'discover_cc_2025_01.pdf',    '67f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3',    'complete', '2025-02-06T18:22:00Z', '2025-02-06T18:24:30Z', NULL);
+
+-- Advance the identity sequence past the explicitly-inserted ids so future app inserts don't collide.
+SELECT setval(pg_get_serial_sequence('clio.statements', 'statement_id'), (SELECT MAX(statement_id) FROM statements));
  
 -- =========================
 -- STATEMENT SUMMARY
@@ -330,8 +315,6 @@ INSERT INTO chat_messages (chat_id, speaker_type, message_content, created_at) V
  
 -- =========================
 -- TRANSACTIONS
--- category_id references are looked up by (user_id, category_name, subcategory_name)
--- Using a helper subquery to keep inserts clean
 -- =========================
  
 -- Tony (user=1) Chase Checking Jan — statement_id=1, account_id=1
@@ -482,127 +465,122 @@ INSERT INTO transactions (user_id, account_id, statement_id, merchant_id, catego
 -- Edge cases
 INSERT INTO transactions (user_id, account_id, statement_id, merchant_id, category_id, category_confidence, transaction_date, description, amount) VALUES
 (1,1,NULL, 4,  (SELECT category_id FROM categories WHERE user_id=1 AND category_name='shopping' AND subcategory_name='shopping'), 0.70, '2025-03-02', 'AMAZON (manual import)',    -42.18),
-(2,3,NULL, 7,  (SELECT category_id FROM categories WHERE user_id=2 AND category_name='food'     AND subcategory_name='coffee'),   0.80, '2025-03-03', 'STARBUCKS (manual import)',  -5.60),
-(1,1,3,    1,  (SELECT category_id FROM categories WHERE user_id=1 AND category_name='income'   AND subcategory_name='salary'),   0.99, '2025-03-01', 'ACME PAYROLL DIRECT DEP', 3100.00),
-(1,1,3,    17, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='bills'    AND subcategory_name='rent'),     0.95, '2025-03-03', 'RENT PAYMENT',           -2100.00),
-(1,1,3,    NULL, NULL,                                                                                                             0.00, '2025-03-04', 'PENDING PARSE LINE',       -12.34);
+(2,3,NULL, 7,  (SELECT category_id FROM categories WHERE user_id=2 AND category_name='food'     AND subcategory_name='coffee'),   0.80, '2025-03-03', 'STARBUCKS (manual import)',  -5.60);
 
 -- =========================
 -- BUDGETS
--- Per user, per category, per statement
 -- =========================
 
 -- Tony (user=1) Chase Checking Jan — statement_id=1
-INSERT INTO budgets (user_id, category_id, statement_id, amount) VALUES
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='bills'         AND subcategory_name='rent'),        1, 2100.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='bills'         AND subcategory_name='internet'),    1,   90.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='bills'         AND subcategory_name='utilities'),   1,  150.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='bills'         AND subcategory_name='phone'),       1,   80.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='bills'         AND subcategory_name='insurance'),   1,  120.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='food'          AND subcategory_name='groceries'),   1,  150.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='food'          AND subcategory_name='dining_out'),  1,  100.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='food'          AND subcategory_name='coffee'),      1,   30.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='shopping'      AND subcategory_name='shopping'),    1,  150.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='shopping'      AND subcategory_name='home_maintenance'), 1, 100.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='shopping'      AND subcategory_name='home_goods'),  1,  200.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='transport'     AND subcategory_name='fuel'),        1,   60.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='transport'     AND subcategory_name='rideshare'),   1,   50.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='health'        AND subcategory_name='pharmacy'),    1,   30.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='transfers'     AND subcategory_name='transfers'),   1,  700.00);
+INSERT INTO budgets (user_id, category_id, category_name, statement_id, amount)
+SELECT 1, MIN(category_id), category_name, 1, v.amount
+FROM (VALUES
+  ('bills',     2100.00 + 90.00 + 150.00 + 80.00 + 120.00),  -- rent+internet+utilities+phone+insurance
+  ('food',       150.00 + 100.00 + 30.00),                    -- groceries+dining_out+coffee
+  ('shopping',   150.00 + 100.00 + 200.00),                   -- shopping+home_maintenance+home_goods
+  ('transport',   60.00 + 50.00),                             -- fuel+rideshare
+  ('health',      30.00),                                     -- pharmacy
+  ('transfers',  700.00)
+) AS v(cat, amount)
+JOIN categories c ON c.user_id = 1 AND c.category_name = v.cat
+GROUP BY category_name, v.amount;
 
 -- Tony (user=1) Chase Checking Feb — statement_id=2
-INSERT INTO budgets (user_id, category_id, statement_id, amount) VALUES
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='bills'         AND subcategory_name='rent'),        2, 2100.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='bills'         AND subcategory_name='internet'),    2,   90.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='bills'         AND subcategory_name='utilities'),   2,  150.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='bills'         AND subcategory_name='phone'),       2,   80.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='bills'         AND subcategory_name='insurance'),   2,  120.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='food'          AND subcategory_name='groceries'),   2,  200.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='food'          AND subcategory_name='dining_out'),  2,  100.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='shopping'      AND subcategory_name='shopping'),    2,  150.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='shopping'      AND subcategory_name='home_maintenance'), 2, 200.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='transport'     AND subcategory_name='fuel'),        2,   60.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='transport'     AND subcategory_name='parking'),     2,   20.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='education'     AND subcategory_name='books'),       2,  150.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='transfers'     AND subcategory_name='transfers'),   2,  800.00);
+INSERT INTO budgets (user_id, category_id, category_name, statement_id, amount)
+SELECT 1, MIN(category_id), category_name, 2, v.amount
+FROM (VALUES
+  ('bills',     2100.00 + 90.00 + 150.00 + 80.00 + 120.00),
+  ('food',       200.00 + 100.00),
+  ('shopping',   150.00 + 200.00),
+  ('transport',   60.00 + 20.00),
+  ('education',  150.00),
+  ('transfers',  800.00)
+) AS v(cat, amount)
+JOIN categories c ON c.user_id = 1 AND c.category_name = v.cat
+GROUP BY category_name, v.amount;
 
 -- Tony (user=1) Amex CC Jan — statement_id=4
-INSERT INTO budgets (user_id, category_id, statement_id, amount) VALUES
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='food'          AND subcategory_name='groceries'),   4,  150.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='food'          AND subcategory_name='coffee'),      4,   30.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='food'          AND subcategory_name='dining_out'),  4,  100.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='transport'     AND subcategory_name='rideshare'),   4,   50.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='transport'     AND subcategory_name='fuel'),        4,   50.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='transport'     AND subcategory_name='parking'),     4,   20.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='entertainment' AND subcategory_name='streaming'),   4,   20.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='entertainment' AND subcategory_name='music'),       4,   15.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='shopping'      AND subcategory_name='shopping'),    4,  150.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='health'        AND subcategory_name='pharmacy'),    4,   40.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='health'        AND subcategory_name='fitness'),     4,   30.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='subscriptions' AND subcategory_name='software'),    4,   15.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='travel'        AND subcategory_name='flights'),     4,  300.00),
-(1, (SELECT category_id FROM categories WHERE user_id=1 AND category_name='travel'        AND subcategory_name='lodging'),     4,  400.00);
+INSERT INTO budgets (user_id, category_id, category_name, statement_id, amount)
+SELECT 1, MIN(category_id), category_name, 4, v.amount
+FROM (VALUES
+  ('food',          150.00 + 30.00 + 100.00),
+  ('transport',      50.00 + 50.00 + 20.00),
+  ('entertainment',  20.00 + 15.00),
+  ('shopping',      150.00),
+  ('health',         40.00 + 30.00),
+  ('subscriptions',  15.00),
+  ('travel',        300.00 + 400.00)
+) AS v(cat, amount)
+JOIN categories c ON c.user_id = 1 AND c.category_name = v.cat
+GROUP BY category_name, v.amount;
 
 -- Alex (user=2) BoA Checking Jan — statement_id=7
-INSERT INTO budgets (user_id, category_id, statement_id, amount) VALUES
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='bills'         AND subcategory_name='rent'),        7, 1650.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='bills'         AND subcategory_name='internet'),    7,   80.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='bills'         AND subcategory_name='utilities'),   7,  160.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='bills'         AND subcategory_name='insurance'),   7,  110.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='food'          AND subcategory_name='groceries'),   7,   80.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='food'          AND subcategory_name='coffee'),      7,   20.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='transport'     AND subcategory_name='rideshare'),   7,   30.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='shopping'      AND subcategory_name='shopping'),    7,   70.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='entertainment' AND subcategory_name='streaming'),   7,   20.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='entertainment' AND subcategory_name='music'),       7,   15.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='transfers'     AND subcategory_name='transfers'),   7,  130.00);
+INSERT INTO budgets (user_id, category_id, category_name, statement_id, amount)
+SELECT 2, MIN(category_id), category_name, 7, v.amount
+FROM (VALUES
+  ('bills',         1650.00 + 80.00 + 160.00 + 110.00),
+  ('food',            80.00 + 20.00),
+  ('transport',       30.00),
+  ('shopping',        70.00),
+  ('entertainment',   20.00 + 15.00),
+  ('transfers',      130.00)
+) AS v(cat, amount)
+JOIN categories c ON c.user_id = 2 AND c.category_name = v.cat
+GROUP BY category_name, v.amount;
 
 -- Alex (user=2) BoA Checking Feb — statement_id=8
-INSERT INTO budgets (user_id, category_id, statement_id, amount) VALUES
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='bills'         AND subcategory_name='rent'),        8, 1650.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='bills'         AND subcategory_name='internet'),    8,   80.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='bills'         AND subcategory_name='utilities'),   8,  160.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='food'          AND subcategory_name='groceries'),   8,   80.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='food'          AND subcategory_name='dining_out'),  8,   60.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='shopping'      AND subcategory_name='shopping'),    8,  100.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='transport'     AND subcategory_name='rideshare'),   8,   30.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='transport'     AND subcategory_name='parking'),     8,   20.00);
+INSERT INTO budgets (user_id, category_id, category_name, statement_id, amount)
+SELECT 2, MIN(category_id), category_name, 8, v.amount
+FROM (VALUES
+  ('bills',      1650.00 + 80.00 + 160.00),
+  ('food',         80.00 + 60.00),
+  ('shopping',    100.00),
+  ('transport',    30.00 + 20.00)
+) AS v(cat, amount)
+JOIN categories c ON c.user_id = 2 AND c.category_name = v.cat
+GROUP BY category_name, v.amount;
 
 -- Alex (user=2) Capital One CC Feb — statement_id=10
-INSERT INTO budgets (user_id, category_id, statement_id, amount) VALUES
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='food'          AND subcategory_name='dining_out'),  10,  60.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='food'          AND subcategory_name='coffee'),      10,  20.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='shopping'      AND subcategory_name='shopping'),    10, 150.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='entertainment' AND subcategory_name='streaming'),   10,  20.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='entertainment' AND subcategory_name='music'),       10,  15.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='health'        AND subcategory_name='pharmacy'),    10,  40.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='travel'        AND subcategory_name='flights'),     10, 300.00),
-(2, (SELECT category_id FROM categories WHERE user_id=2 AND category_name='travel'        AND subcategory_name='lodging'),     10, 450.00);
+INSERT INTO budgets (user_id, category_id, category_name, statement_id, amount)
+SELECT 2, MIN(category_id), category_name, 10, v.amount
+FROM (VALUES
+  ('food',           60.00 + 20.00),
+  ('shopping',      150.00),
+  ('entertainment',  20.00 + 15.00),
+  ('health',         40.00),
+  ('travel',        300.00 + 450.00)
+) AS v(cat, amount)
+JOIN categories c ON c.user_id = 2 AND c.category_name = v.cat
+GROUP BY category_name, v.amount;
 
 -- Maya (user=3) Wells Fargo Checking Jan — statement_id=11
-INSERT INTO budgets (user_id, category_id, statement_id, amount) VALUES
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='bills'         AND subcategory_name='rent'),        11, 1800.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='bills'         AND subcategory_name='internet'),    11,   70.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='bills'         AND subcategory_name='utilities'),   11,  160.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='bills'         AND subcategory_name='phone'),       11,   70.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='bills'         AND subcategory_name='insurance'),   11,  120.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='food'          AND subcategory_name='groceries'),   11,  150.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='food'          AND subcategory_name='dining_out'),  11,   80.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='food'          AND subcategory_name='coffee'),      11,   20.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='health'        AND subcategory_name='fitness'),     11,   30.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='transfers'     AND subcategory_name='transfers'),   11,   50.00);
+INSERT INTO budgets (user_id, category_id, category_name, statement_id, amount)
+SELECT 3, MIN(category_id), category_name, 11, v.amount
+FROM (VALUES
+  ('bills',     1800.00 + 70.00 + 160.00 + 70.00 + 120.00),
+  ('food',       150.00 + 80.00 + 20.00),
+  ('health',      30.00),
+  ('transfers',   50.00)
+) AS v(cat, amount)
+JOIN categories c ON c.user_id = 3 AND c.category_name = v.cat
+GROUP BY category_name, v.amount;
 
 -- Maya (user=3) Discover CC Jan — statement_id=13
-INSERT INTO budgets (user_id, category_id, statement_id, amount) VALUES
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='entertainment' AND subcategory_name='streaming'),   13,  20.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='entertainment' AND subcategory_name='music'),       13,  15.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='shopping'      AND subcategory_name='shopping'),    13, 150.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='food'          AND subcategory_name='dining_out'),  13,  60.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='food'          AND subcategory_name='coffee'),      13,  20.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='transport'     AND subcategory_name='parking'),     13,  20.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='travel'        AND subcategory_name='flights'),     13, 250.00),
-(3, (SELECT category_id FROM categories WHERE user_id=3 AND category_name='travel'        AND subcategory_name='lodging'),     13, 400.00);
+INSERT INTO budgets (user_id, category_id, category_name, statement_id, amount)
+SELECT 3, MIN(category_id), category_name, 13, v.amount
+FROM (VALUES
+  ('entertainment',  20.00 + 15.00),
+  ('shopping',      150.00),
+  ('food',           60.00 + 20.00),
+  ('transport',      20.00),
+  ('travel',        250.00 + 400.00)
+) AS v(cat, amount)
+JOIN categories c ON c.user_id = 3 AND c.category_name = v.cat
+GROUP BY category_name, v.amount;
 
+-- =========================
+-- GOALS
+-- =========================
 INSERT INTO goals (user_id, title, target_amount, saved_amount, deadline) VALUES
 (1, 'Emergency Fund', 10000.00, 4200.00, NULL),
 (1, 'Trip to Japan',   5000.00, 1800.00, '2025-12-01'),

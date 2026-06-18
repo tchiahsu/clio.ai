@@ -42,9 +42,11 @@ export async function dataParsing(
     filePath: string,
     userId: number
 ): Promise<void> {
-    await sqlSetStatusProcessing(pool, userId, statementId);
-
     try {
+        // Mark processing inside the try so a failure here also lands the
+        // statement in 'failed' (via the catch) rather than leaving it stuck.
+        await sqlSetStatusProcessing(pool, userId, statementId);
+
         // ── 1. Extract raw text from PDF ────────────────────────────────────
         const text = await pdfToText(filePath);
 

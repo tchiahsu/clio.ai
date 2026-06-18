@@ -3,6 +3,7 @@ import { BsBank2, BsCreditCard2Front } from 'react-icons/bs'
 import { LuTrash2 } from 'react-icons/lu'
 import SectionHeader from '../layout/SectionHeader'
 import DeleteAccountModal from '../layout/DeleteAccountModal'
+import { useStatements } from '../../context/StatementContext'
 
 
 interface Account {
@@ -31,6 +32,7 @@ interface Transaction {
 }
 
 export default function Accounts() {
+  const { reload: reloadStatements } = useStatements()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [summary, setSummary] = useState<AccountSummary | null>(null)
@@ -43,8 +45,9 @@ export default function Accounts() {
       try {
         const res = await fetch('/api/accounts')
         const result = await res.json()
-        setAccounts(result.data)
-        if (result.data.length > 0) setSelectedId(result.data[0].account_id)
+        const data: Account[] = result.data ?? []
+        setAccounts(data)
+        if (data.length > 0) setSelectedId(data[0].account_id)
       } catch {
         console.error('Failed to fetch accounts')
       }
@@ -83,7 +86,7 @@ export default function Accounts() {
   const refetchAccounts = async () => {
     const res = await fetch('/api/accounts')
     const result = await res.json()
-    setAccounts(result.data)
+    setAccounts(result.data ?? [])
   }
 
   const getAccountIcon = (accountType: string) => {
@@ -226,6 +229,9 @@ export default function Accounts() {
             setSummary(null)
             setTransactions([])
             await refetchAccounts()
+            // The DB cascades the account's statements/transactions on delete, so
+            // refresh the shared statement state to keep the sidebar selector in sync.
+            await reloadStatements()
           }}
         />
       )}

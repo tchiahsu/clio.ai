@@ -158,9 +158,12 @@ export default function Sidebar() {
       const result = await res.json()
       if (!res.ok) { setUploadError(result.error ?? 'Upload failed'); return }
       const statementId: number = result.statementId
-      await pollUntilComplete(statementId)
+      const finalStatus = await pollUntilComplete(statementId)
       await reload()
-      setSelectedId(statementId)
+      // Only auto-select the upload if it actually completed; otherwise leave the
+      // context's reconciliation to pick a valid (complete) statement so pages
+      // don't fetch data for a failed/processing one.
+      if (finalStatus === 'complete') setSelectedId(statementId)
     } catch (err) {
       console.error('Upload failed', err)
     } finally {
@@ -169,16 +172,18 @@ export default function Sidebar() {
     }
   }
 
-  async function pollUntilComplete(statementId: number, maxAttempts = 30) {
+  async function pollUntilComplete(statementId: number, maxAttempts = 30): Promise<string | undefined> {
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise(r => setTimeout(r, 2000))
       try {
         const res = await fetch(`/api/statement/status?statementId=${statementId}`)
+        if (!res.ok) continue
         const data = await res.json()
         const status = data.data?.current_status
-        if (status === 'complete' || status === 'failed') return
+        if (status === 'complete' || status === 'failed') return status
       } catch { /* network blip */ }
     }
+    return undefined
   }
 
   const completeStatements = statements.filter(s => s.current_status === 'complete')

@@ -32,35 +32,47 @@ function hashFile(filePath: string): Promise<string> {
  * Deduplicates by SHA-256 hash, inserts a statements row, and triggers parsing.
  */
 export async function postStatementUpload(req: Request, res: Response) {
+    // Best-effort cleanup of the multer temp file on any path that does NOT hand
+    // off to dataParsing (which unlinks it itself in its finally block). Without
+    // this, rejected/failed uploads leak files in uploads/.
+    const cleanupTempFile = () => {
+        if (req.file?.path) {
+            fs.unlink(req.file.path, () => { /* ignore ENOENT */ });
+        }
+    };
+
     try {
         if (!req.file) {
             return res.status(400).json({ error: "No file uploaded" });
         }
- 
+
         const userId = getUserId(req);
         const filePath = req.file.path;
         const fileName = req.file.filename;
- 
+
         // Reject duplicates before doing any DB work
         const fileHash = await hashFile(filePath);
         const exists = await sqlValidateStatement(pool, userId, fileHash);
         if (exists && exists.length > 0) {
+            cleanupTempFile();
             return res.status(409).json({ error: "You have already added this bank statement" });
         }
- 
+
         // Insert the statement row (status defaults to 'queued')
         const newStatement = await sqlAddStatement(pool, userId, fileName, fileHash);
         const statementId: number = newStatement.statement_id;
- 
-        // Kick off the async parsing pipeline.
-        // We intentionally do NOT await — the client polls /statement/status.
+
+        // Kick off the async parsing pipeline. dataParsing now owns filePath and
+        // will unlink it. We intentionally do NOT await — the client polls /status.
         dataParsing(statementId, filePath, userId).catch((err) => {
             console.error(`Parsing pipeline failed for statement ${statementId}:`, err);
         });
- 
-        return res.status(202).json({ statementId, status: "processing" });
+
+        // Row is inserted as 'queued'; dataParsing flips it to 'processing'.
+        return res.status(202).json({ statementId, status: "queued" });
     } catch (err) {
         console.error("postStatementUpload error:", err);
+        cleanupTempFile();
         return res.status(500).json({ error: "Internal Server Error" });
     }
 }

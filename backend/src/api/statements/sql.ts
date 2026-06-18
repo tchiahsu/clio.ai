@@ -70,6 +70,24 @@ export async function sqlValidateStatement(pool: Pool, userId: number, fileHash:
     return res.rows;
 }
  
+/**
+ * Startup reconciliation: any statement left in 'queued'/'processing' is an
+ * orphan from a crash or restart mid-parse (the parsing pipeline runs in-process
+ * and is not crash-safe). Mark them 'failed' so the UI stops polling forever.
+ */
+export async function sqlFailOrphanedStatements(pool: Pool) {
+    const res = await pool.query(
+        `
+        UPDATE statements
+        SET current_status = 'failed',
+            error_message  = 'Processing interrupted by a server restart'
+        WHERE current_status IN ('queued', 'processing')
+        RETURNING statement_id
+        `
+    );
+    return res.rows;
+}
+
 export async function sqlSetStatusProcessing(pool: Pool, userId: number, statementId: number) {
     const res = await pool.query(
         `

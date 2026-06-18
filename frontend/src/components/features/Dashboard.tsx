@@ -68,9 +68,9 @@ export default function Dashboard() {
         const summaryData = await summaryRes.json()
         const categoriesData = await categoriesRes.json()
         const budgetsData = await budgetsRes.json()
-        setSummary(summaryData.data)
-        setCategories(categoriesData.data)
-        setBudgetItems(budgetsData.data)
+        setSummary(summaryData.data ?? null)
+        setCategories(categoriesData.data ?? [])
+        setBudgetItems(budgetsData.data ?? [])
       } catch (err) {
         console.error('Failed to fetch dashboard data', err)
       } finally {
@@ -85,7 +85,7 @@ export default function Dashboard() {
       try {
         const res = await fetch('/api/goals')
         const result = await res.json()
-        setGoals(result.data)
+        setGoals(result.data ?? [])
       } catch {
         console.error('Failed to fetch goals')
       }

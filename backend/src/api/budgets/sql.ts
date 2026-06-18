@@ -7,22 +7,18 @@ export async function sqlGetBudgets(pool: Pool, userId: number, statementId: num
     const res = await pool.query(
         `
         SELECT 
-            cat_budgets.category_name,
-            cat_budgets.category_id,
-            cat_budgets.budgeted,
+            b.budget_id,
+            b.category_id,
+            b.category_name,
+            b.amount AS budgeted,
             COALESCE(SUM(CASE WHEN t.amount < 0 THEN -t.amount ELSE 0 END), 0) AS spent
-        FROM (
-            SELECT c.category_name, MIN(c.category_id) AS category_id, SUM(b.amount) AS budgeted
-            FROM budgets b
-            JOIN categories c ON c.category_id = b.category_id
-            WHERE b.user_id = $1 AND b.statement_id = $2
-            GROUP BY c.category_name
-        ) cat_budgets
-        LEFT JOIN categories c ON c.category_name = cat_budgets.category_name AND c.user_id = $1
+        FROM budgets b
+        LEFT JOIN categories c ON c.category_id = b.category_id
         LEFT JOIN transactions t ON t.category_id = c.category_id
             AND t.statement_id = $2
             AND t.user_id = $1
-        GROUP BY cat_budgets.category_name, cat_budgets.category_id, cat_budgets.budgeted
+        WHERE b.user_id = $1 AND b.statement_id = $2
+        GROUP BY b.budget_id, b.category_id, b.category_name, b.amount
         ORDER BY spent DESC
         `,
         [userId, statementId]
@@ -51,19 +47,25 @@ export async function sqlGetTotalBudget(pool: Pool, userId: number, statementId:
 export async function sqlUpsertBudget(
     pool: Pool,
     userId: number,
-    categoryId: number,
+    categoryName: string,
     statementId: number,
     amount: number
 ) {
     const res = await pool.query(
         `
-        INSERT INTO budgets (user_id, category_id, statement_id, amount)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (user_id, category_id, statement_id)
+        INSERT INTO budgets (user_id, category_id, category_name, statement_id, amount)
+        VALUES (
+            $1,
+            (SELECT MIN(category_id) FROM categories WHERE user_id = $1 AND category_name = $2),
+            $2,
+            $3,
+            $4
+        )
+        ON CONFLICT (user_id, category_name, statement_id)
         DO UPDATE SET amount = EXCLUDED.amount
         RETURNING *
         `,
-        [userId, categoryId, statementId, amount]
+        [userId, categoryName, statementId, amount]
     );
     return res.rows[0];
 }

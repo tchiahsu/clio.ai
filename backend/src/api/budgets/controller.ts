@@ -22,16 +22,18 @@ export async function getBudgets(req: Request, res: Response) {
 
 /**
  * POST /budgets
- * Body: { categoryId, statementId, amount }
+ * Body: { categoryName, statementId, amount }
  */
 export async function upsertBudget(req: Request, res: Response) {
     try {
         const userId = getUserId(req);
-        const { categoryId, statementId, amount } = req.body;
-        if (!categoryId || !statementId || amount === undefined) {
-            return res.status(400).json({ error: "categoryId, statementId and amount are required" });
-        }
-        const data = await sqlUpsertBudget(pool, userId, categoryId, statementId, amount);
+        const { categoryName, statementId, amount } = req.body;
+
+        if (!categoryName) return res.status(400).json({ error: "categoryName not found" });
+        if (!statementId) return res.status(400).json({ error: "statementId not found" });
+        if (amount === undefined) return res.status(400).json({ error: "amount not found" });
+
+        const data = await sqlUpsertBudget(pool, userId, categoryName, statementId, amount);
         res.json({ data });
     } catch (err) {
         console.error("upsertBudget error:", err);

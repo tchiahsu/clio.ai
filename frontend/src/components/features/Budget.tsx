@@ -3,10 +3,10 @@ import ContentCard from '../layout/ContentCard'
 import CategoryBudgetCard from '../layout/CategoryBudgetCard'
 import SectionHeader from '../layout/SectionHeader'
 import EditBudgetsModal from '../layout/EditBudgetsModal'
-import SetGoalFundsModal from '../layout/SetGoalFundsModal'
 import GoalCard from '../layout/GoalCard'
 import CreateGoalModal from '../layout/CreateGoalModal'
 import DeleteGoalModal from '../layout/DeleteGoalModal' 
+import EditGoalModal from '../layout/EditGoalModal'
 import { useStatements } from '../../context/StatementContext'
 import { LuPlus } from 'react-icons/lu'
 import { GoPencil } from "react-icons/go";
@@ -50,9 +50,9 @@ export default function Budget() {
   const [editingBudgets, setEditingBudgets] = useState(false)
   const [previousCategories, setPreviousCategories] = useState<CategorySpend[]>([])
   const [goals, setGoals] = useState<Goal[]>([])
-  const [addingFundsGoal, setAddingFundsGoal] = useState<Goal | null>(null)
   const [creatingGoal, setCreatingGoal] = useState(false)
   const [deletingGoal, setDeletingGoal] = useState<Goal | null>(null)
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
 
   const activeStatement = statements.find(s => s.statement_id === selectedId)
 
@@ -245,10 +245,10 @@ export default function Budget() {
                   targetAmount={Number(g.target_amount)}
                   deadline={g.deadline}
                   showIcon
-                  showAddFunds
-                  onAddFunds={() => setAddingFundsGoal(g)}
                   showDelete
                   onDelete={() => setDeletingGoal(g)}
+                  showEdit
+                  onEdit={() => setEditingGoal(g)}
                 />
               </div>
             ))}
@@ -293,32 +293,6 @@ export default function Budget() {
         />
       )}
 
-      {addingFundsGoal && (
-        <SetGoalFundsModal
-          goalTitle={addingFundsGoal.title}
-          currentSaved={Number(addingFundsGoal.saved_amount)}
-          onClose={() => setAddingFundsGoal(null)}
-          onSave={async (newSavedAmount) => {
-            await fetch(`/api/goals/${addingFundsGoal.goal_id}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                title: addingFundsGoal.title,
-                targetAmount: addingFundsGoal.target_amount,
-                savedAmount: newSavedAmount,
-                deadline: addingFundsGoal.deadline,
-              }),
-            })
-            setAddingFundsGoal(null)
-            setGoals(prev => prev.map(g =>
-              g.goal_id === addingFundsGoal.goal_id
-                ? { ...g, saved_amount: newSavedAmount }
-                : g
-            ))
-          }}
-        />
-      )}
-
       {creatingGoal && (
         <CreateGoalModal
           onClose={() => setCreatingGoal(false)}
@@ -346,6 +320,36 @@ export default function Budget() {
             const res = await fetch('/api/goals')
             const result = await res.json()
             setGoals(result.data)
+          }}
+        />
+      )}
+
+      {editingGoal && (
+        <EditGoalModal
+          title={editingGoal.title}
+          targetAmount={Number(editingGoal.target_amount)}
+          savedAmount={Number(editingGoal.saved_amount)}
+          deadline={editingGoal.deadline}
+          onClose={() => setEditingGoal(null)}
+          onSave={async (goal) => {
+            await fetch(`/api/goals/${editingGoal.goal_id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(goal),
+            })
+            setEditingGoal(null)
+            // update in place instead of refetching
+            setGoals(prev => prev.map(g =>
+              g.goal_id === editingGoal.goal_id
+                ? { 
+                    ...g, 
+                    title: goal.title,
+                    target_amount: goal.targetAmount,
+                    saved_amount: goal.savedAmount,
+                    deadline: goal.deadline,
+                  }
+                : g
+            ))
           }}
         />
       )}

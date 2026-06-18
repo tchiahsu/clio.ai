@@ -11,6 +11,7 @@ export interface Statement {
   bank_name: string
   account_number: string
   account_type: string
+  uploaded_at?: string
 }
 
 export interface User {
@@ -52,30 +53,69 @@ export function StatementProvider({ children }: { children: ReactNode }) {
       .catch(err => console.error('Failed to fetch user', err))
   }, [])
 
-  // fetchStatements has no deps — uses refs/setters only, no stale closure risk
-  const reload = async () => {
-    setIsLoading(true)
+  // fetchStatements has no deps — uses refs/setters only, no stale closure risk.
+  // `silent` skips the loading flag so background polling doesn't flash the UI.
+  const fetchStatements = async (silent = false) => {
+    if (!silent) setIsLoading(true)
     try {
       const res = await fetch('/api/statement/list')
       const result = await res.json()
       if (!result.data) return
       const list: Statement[] = result.data
       setStatements(list)
-      if (!hasInitialized.current && list.length > 0) {
-        hasInitialized.current = true
-        const first = list.find(s => s.current_status === 'complete') ?? list[0]
-        setSelectedId(first.statement_id)
-      } else {
-        hasInitialized.current = true
-      }
+      // Reconcile the selection against the freshly-fetched list so the sidebar
+      // never points at a statement that no longer exists (e.g. after its account
+      // is deleted and the DB cascades the statements away).
+      setSelectedId(prev => {
+        if (!hasInitialized.current) {
+          hasInitialized.current = true
+          if (list.length === 0) return null
+          const first = list.find(s => s.current_status === 'complete') ?? list[0]
+          return first.statement_id
+        }
+        // Selection still valid → keep it.
+        if (prev != null && list.some(s => s.statement_id === prev)) return prev
+        // Selection was deleted (or never set) → fall back to a complete statement, else clear.
+        const fallback = list.find(s => s.current_status === 'complete')
+        return fallback ? fallback.statement_id : null
+      })
     } catch (err) {
       console.error('Failed to fetch statements', err)
     } finally {
-      setIsLoading(false)
+      if (!silent) setIsLoading(false)
     }
   }
 
-  useEffect(() => { reload() }, []) 
+  const reload = () => fetchStatements(false)
+
+  useEffect(() => { reload() }, [])
+
+  // Derive a *stable* boolean so the polling effect only re-runs when processing
+  // actually starts or stops — not on every fetch. (Each fetch replaces the
+  // statements array reference, so depending on `statements` directly would tear
+  // down and recreate the interval every cycle → a runaway reload loop.)
+  const anyProcessing = statements.some(
+    s => s.current_status === 'processing' || s.current_status === 'queued'
+  )
+
+  // While any statement is processing, poll in the background so the UI reflects
+  // backend completion/failure without a manual refresh. The interval is created
+  // once when processing begins and torn down when it ends. A bounded attempt
+  // count is a backstop so a stuck backend job can't poll forever.
+  useEffect(() => {
+    if (!anyProcessing) return
+    let attempts = 0
+    const MAX_ATTEMPTS = 75 // ~5 min at 4s intervals
+    const id = setInterval(() => {
+      if (++attempts > MAX_ATTEMPTS) {
+        clearInterval(id)
+        console.warn('Stopped polling statements after timeout; some may still be processing')
+        return
+      }
+      fetchStatements(true)
+    }, 4000)
+    return () => clearInterval(id)
+  }, [anyProcessing])
 
   return (
     <StatementContext.Provider value={{

@@ -63,7 +63,7 @@ export default function Budget() {
       try {
         const res = await fetch(`/api/dashboard/accounts/${activeStatement.account_id}/budget`)
         const result = await res.json()
-        setOverview(result.data)
+        setOverview(result.data ?? [])
       } catch {
         console.error('Failed to fetch budget overview')
       } finally {
@@ -86,8 +86,8 @@ export default function Budget() {
         ])
         const categoriesData = await categoriesRes.json()
         const budgetsData = await budgetsRes.json()
-        setCategories(categoriesData.data)
-        setBudgetItems(budgetsData.data)
+        setCategories(categoriesData.data ?? [])
+        setBudgetItems(budgetsData.data ?? [])
       } catch {
         console.error('Failed to fetch category data')
       }
@@ -102,7 +102,7 @@ export default function Budget() {
       try {
         const res = await fetch(`/api/dashboard/categories?statementId=${previous.statement_id}`)
         const result = await res.json()
-        setPreviousCategories(result.data)
+        setPreviousCategories(result.data ?? [])
       } catch {
         console.error('Failed to fetch previous categories')
       }
@@ -115,7 +115,7 @@ export default function Budget() {
       try {
         const res = await fetch('/api/goals')
         const result = await res.json()
-        setGoals(result.data)
+        setGoals(result.data ?? [])
       } catch {
         console.error('Failed to fetch goals')
       }

@@ -170,12 +170,12 @@ button:focus-visible {
   body {
     @apply text-foreground;
     min-height: 100vh;
-    background-color: #eef2fa;
+    background-color: #e3eeff;
     background-image:
-      radial-gradient(ellipse 30% 25% at 10% 15%, #ccdcf5 0%, transparent 100%),
-      radial-gradient(ellipse 25% 20% at 88% 8%, #d2e2f7 0%, transparent 100%),
-      radial-gradient(ellipse 28% 24% at 80% 92%, #c8d8f4 0%, transparent 100%),
-      radial-gradient(ellipse 22% 20% at 5% 82%, #d5e4f8 0%, transparent 100%);
+      radial-gradient(ellipse 30% 25% at 10% 15%, #9cc6ff 0%, transparent 100%),
+      radial-gradient(ellipse 25% 20% at 88% 8%, #c4ddff 0%, transparent 100%),
+      radial-gradient(ellipse 28% 24% at 80% 92%, #c2deff 0%, transparent 100%),
+      radial-gradient(ellipse 22% 20% at 5% 82%, #aed3ff 0%, transparent 100%);
   }
   html {
     @apply font-sans;

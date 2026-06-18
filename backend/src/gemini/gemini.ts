@@ -264,7 +264,7 @@ export function formatQueryAnswer(
 
         let answer = answerTemplate;
         for (const key of keys) {
-            answer = answer.replace(`{${key}}`, formatValue(key, row[key]));
+            answer = answer.replaceAll(`{${key}}`, formatValue(key, row[key]));
         }
 
         // If the template still has unreplaced placeholders, fall back to

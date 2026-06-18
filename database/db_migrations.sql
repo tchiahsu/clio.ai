@@ -46,13 +46,16 @@ CREATE TABLE statements (
   account_id    INT,
   period_start  DATE,
   period_end    DATE,
-  file_hash     CHAR(64)     UNIQUE,
+  file_hash     CHAR(64),
   file_name     VARCHAR(128) NOT NULL,
   current_status statement_status NOT NULL DEFAULT 'queued',
   uploaded_at   TIMESTAMPTZ,
   parsed_at     TIMESTAMPTZ,
   error_message VARCHAR(128),
   CHECK (period_end >= period_start),
+  -- De-dup is per user (two users may upload the same file), matching
+  -- sqlValidateStatement. A global UNIQUE(file_hash) would 500 on cross-user dupes.
+  UNIQUE (user_id, file_hash),
   FOREIGN KEY (user_id) REFERENCES users(user_id)
     ON UPDATE CASCADE ON DELETE CASCADE,
   FOREIGN KEY (account_id) REFERENCES accounts(account_id)

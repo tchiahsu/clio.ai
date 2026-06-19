@@ -8,6 +8,7 @@ import {
 import { RiPieChartLine } from 'react-icons/ri'
 import { useRef, useState, useEffect } from 'react'
 import { useStatements } from '../../context/StatementContext'
+import { useAuth } from '../../context/AuthContext'
 
 const navItems = [
   { name: 'Dashboard',    path: '/dashboard',    icon: <MdOutlineDashboard /> },
@@ -57,7 +58,8 @@ function SectionHeader({
 
 export default function Sidebar() {
   const navigate = useNavigate()
-  const { statements, selectedId, setSelectedId, isLoading, reload, user } = useStatements()
+  const { statements, selectedId, setSelectedId, isLoading, reload } = useStatements()
+  const { user, logout } = useAuth()
 
   const [menuOpen, setMenuOpen]               = useState(false)
   const [chatsOpen, setChatsOpen]             = useState(true)
@@ -124,12 +126,8 @@ export default function Sidebar() {
   }, [])
 
   const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' })
-      navigate('/login')
-    } catch (err) {
-      console.error('Logout failed', err)
-    }
+    await logout()
+    navigate('/login')
   }
 
   const handleDeleteChat = async (chatId: number, e: React.MouseEvent) => {
@@ -359,7 +357,7 @@ export default function Sidebar() {
               style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
               Guest
             </span>
-          ) : user.email === 'demo@clio.ai' ? (
+          ) : user.email === 'demo@example.com' ? (
             <span className="inline-block text-[10px] tracking-wide font-semibold px-2 py-1 rounded-full"
               style={{ backgroundColor: 'rgba(234, 179, 8, 0.15)', color: '#ca8a04' }}>
               Demo

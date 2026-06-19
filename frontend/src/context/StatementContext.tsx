@@ -14,18 +14,10 @@ export interface Statement {
   uploaded_at?: string
 }
 
-export interface User {
-  id: number
-  email: string
-  firstName: string
-  lastName: string
-}
-
 interface StatementContextValue {
   statements: Statement[]
   selectedId: number | null
   isLoading: boolean
-  user: User | null
   setSelectedId: (id: number | null) => void
   reload: () => Promise<void>
 }
@@ -42,16 +34,7 @@ export function StatementProvider({ children }: { children: ReactNode }) {
   const [statements, setStatements] = useState<Statement[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [user, setUser] = useState<User | null>(null)
   const hasInitialized = useRef(false)
-
-  // Fetch user once
-  useEffect(() => {
-    fetch('/api/auth/me')
-      .then(r => r.json())
-      .then(data => { if (data.ok) setUser(data.user) })
-      .catch(err => console.error('Failed to fetch user', err))
-  }, [])
 
   // fetchStatements has no deps — uses refs/setters only, no stale closure risk.
   // `silent` skips the loading flag so background polling doesn't flash the UI.
@@ -122,7 +105,6 @@ export function StatementProvider({ children }: { children: ReactNode }) {
       statements,
       selectedId,
       isLoading,
-      user,
       setSelectedId,
       reload,
     }}>

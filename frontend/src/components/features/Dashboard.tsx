@@ -6,6 +6,7 @@ import NetThisMonthCard from '../layout/NetThisMonthCard'
 import TotalSpendingCard from '../layout/TotalSpendingCard'
 import GoalCard from '../layout/GoalCard'
 import { useStatements } from '../../context/StatementContext'
+import { useAuth } from '../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { BsBank2 } from 'react-icons/bs'
 
@@ -43,7 +44,8 @@ function formatLabel(s: { bank_name: string; account_type: string; period_end: s
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { selectedId, statements, user } = useStatements()
+  const { selectedId, statements } = useStatements()
+  const { user } = useAuth()
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [categories, setCategories] = useState<CategorySpend[]>([])
@@ -53,7 +55,7 @@ export default function Dashboard() {
 
   const activeStatement = statements.find(s => s.statement_id === selectedId)
 
-  const displayName = !user || user.email === 'demo@clio.ai' ? 'Guest' : user.firstName
+  const displayName = !user || user.email === 'demo@example.com' ? 'Guest' : user.firstName
 
   useEffect(() => {
     if (!selectedId) return

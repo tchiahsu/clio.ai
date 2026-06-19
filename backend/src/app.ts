@@ -32,27 +32,15 @@ app.use(
 // Public routes — no session required
 app.use("/auth", authRouter);
  
-// Protected routes — requireAuth middleware gates every handler below this line
-// app.use("/dashboard", requireAuth, dashboardRouter);
-// app.use("/transaction", requireAuth, transactionRouter);
-// app.use("/merchants", requireAuth, merchantsRouter);
-// app.use("/categories", requireAuth, categoriesRouter);
-// app.use("/accounts", requireAuth, accountRouter);
-// app.use("/chat", requireAuth, chatRouter);
-// app.use("/statement", requireAuth, statementRouter);
-// app.use("/budgets", requireAuth, budgetRouter);
-// app.use("/goals", requireAuth, goalRouter);
-
-
-// BYPASSING AUTH FOR DESIGN PURPOSES (DELETE THIS LATER!!!)
-app.use("/dashboard", dashboardRouter);
-app.use("/transaction", transactionRouter);
-app.use("/merchants", merchantsRouter);
-app.use("/categories", categoriesRouter);
-app.use("/accounts", accountRouter);
-app.use("/chat", chatRouter);
-app.use("/statement", statementRouter);
-app.use("/budgets", budgetRouter);
-app.use("/goals", goalRouter);
+// Protected routes — requireAuth middleware gates every handler below this line.
+app.use("/dashboard", requireAuth, dashboardRouter);
+app.use("/transaction", requireAuth, transactionRouter);
+app.use("/merchants", requireAuth, merchantsRouter);
+app.use("/categories", requireAuth, categoriesRouter);
+app.use("/accounts", requireAuth, accountRouter);
+app.use("/chat", requireAuth, chatRouter);
+app.use("/statement", requireAuth, statementRouter);
+app.use("/budgets", requireAuth, budgetRouter);
+app.use("/goals", requireAuth, goalRouter);
 
 export default app;

@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import pool from "../../database.js";
-import { getUserId, getParamId } from "../utils.js";
+import { getUserId, getParamId, getYearMonth } from "../utils.js";
 import {
     sqlAllAccountsList,
     sqlAccountSummary,
@@ -32,9 +32,12 @@ export async function getAccountSummary(req: Request, res: Response) {
         const accountId = getParamId(req);
  
         if (!accountId) return res.status(400).json({ error: "account id not found" });
- 
-        const data = await sqlAccountSummary(pool, accountId, userId);
-        res.json({ accountId, data });
+
+        const period = getYearMonth(req);
+        if (!period) return res.status(400).json({ error: "year and month are required" });
+
+        const data = await sqlAccountSummary(pool, accountId, userId, period.year, period.month);
+        res.json({ accountId, ...period, data });
     } catch (err) {
         console.error("getAccountSummary error:", err);
         return res.status(500).json({ error: "Internal Server Error" });
@@ -94,9 +97,12 @@ export async function getAccountTransactions(req: Request, res: Response) {
         const accountId = getParamId(req);
  
         if (!accountId) return res.status(400).json({ error: "account id not found" });
- 
-        const data = await sqlAccountTransaction(pool, accountId, userId);
-        res.json({ accountId, data });
+
+        const period = getYearMonth(req);
+        if (!period) return res.status(400).json({ error: "year and month are required" });
+
+        const data = await sqlAccountTransaction(pool, accountId, userId, period.year, period.month);
+        res.json({ accountId, ...period, data });
     } catch (err) {
         console.error("getAccountTransactions error:", err);
         return res.status(500).json({ error: "Internal Server Error" });

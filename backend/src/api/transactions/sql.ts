@@ -23,7 +23,7 @@ export async function sqlLatestStatementId(pool: Pool, userId: number) {
 export async function sqlAllTransactions(pool: Pool, userId: number) {
     const res = await pool.query(
         `
-        SELECT t.transaction_id, t.transaction_date, t.description, t.amount, a.bank_name, a.account_type, m.merchant_name, c.category_name, t.category_confidence, t.statement_id
+        SELECT t.transaction_id, t.transaction_date, t.description, t.amount, a.account_id, a.bank_name, a.account_type, a.account_number, m.merchant_name, c.category_name, t.category_id, t.category_confidence, t.statement_id
         FROM transactions t
         JOIN accounts a ON a.account_id = t.account_id
         LEFT JOIN merchants m ON m.merchant_id = t.merchant_id

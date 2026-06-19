@@ -1,57 +1,38 @@
 import type { Request, Response } from "express";
 import pool from "../../database.js";
-import { getUserId, toInt } from "../utils.js";
-import { sqlAssertStatementOwned, sqlDashboardTransactionsForStatement } from "../dashboard/sql.js";
+import { getUserId, getYearMonth, toInt } from "../utils.js";
+import { sqlTransactionsForMonth } from "../dashboard/sql.js";
 import {
-    sqlLatestStatementId,
     sqlAllTransactions,
     sqlGetTransactionDetail,
     sqlPatchTransactionCategory,
     sqlPatchTransactionMerchant,
 } from "./sql.js";
 
-async function checkStatementOwner(res: Response, userId: number, statementId: number) {
-    const ok = await sqlAssertStatementOwned(pool, userId, statementId);
-    if (!ok) {
-        res.status(404).json({ error: "Statement not found" });
-        return false;
-    }
-    return true;
-}
-
 /**
- * GET /transaction?scope=latest|statement|all[&statementId=N]
+ * GET /transaction?scope=month|all[&year=YYYY&month=M]
+ *
+ * scope=all   → every transaction the user has, across all accounts and months.
+ * scope=month → all of the user's transactions in the given month, across every
+ *               account (the default; matches the month-wide totals elsewhere).
  */
 export async function getTransactionList(req: Request, res: Response) {
     try {
         const userId = getUserId(req);
-        const scope = (req.query.scope as string | undefined) ?? "latest";
-        const statementIdParam = toInt(req.query.statementId);
+        const scope = (req.query.scope as string | undefined) ?? "month";
 
         if (scope === "all") {
             const data = await sqlAllTransactions(pool, userId);
             return res.json({ scope: "all", data });
         }
 
-        let statementId: number | null;
-
-        if (scope === "statement") {
-            if (statementIdParam === undefined) {
-                return res.status(400).json({ error: "statementId required when scope=statement" });
-            }
-            statementId = statementIdParam;
-        } else {
-            statementId = await sqlLatestStatementId(pool, userId);
-            if (statementId === null) {
-                return res.status(404).json({ error: "No statements found" });
-            }
+        const period = getYearMonth(req);
+        if (!period) {
+            return res.status(400).json({ error: "year and month are required when scope=month" });
         }
 
-        const ownership = await checkStatementOwner(res, userId, statementId);
-        if (!ownership) return;
-
-        const data = await sqlDashboardTransactionsForStatement(pool, userId, statementId);
-        res.json({ scope: scope === "statement" ? "statement" : "latest", statementId, data });
+        const data = await sqlTransactionsForMonth(pool, userId, period.year, period.month);
+        res.json({ scope: "month", ...period, data });
     } catch (err) {
         console.error("getTransactionList error:", err);
         return res.status(500).json({ error: "Internal Server Error" });

@@ -16,8 +16,8 @@ interface BudgetOverview {
 }
 
 interface NetThisMonthCardProps {
-  statementId: number
-  accountId: number
+  year: number
+  month: number
   linkText: string
   onLinkClick?: () => void
 }
@@ -28,20 +28,20 @@ interface TooltipProps {
   label?: string
 }
 
-export default function NetThisMonthCard({ statementId, accountId, linkText, onLinkClick }: NetThisMonthCardProps) {
+export default function NetThisMonthCard({ year, month, linkText, onLinkClick }: NetThisMonthCardProps) {
   const [dailyData, setDailyData] = useState<DailyTotal[]>([])
   const [overview, setOverview] = useState<BudgetOverview[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (!statementId || !accountId) return
+    if (!year || !month) return
 
     const fetchData = async () => {
       setIsLoading(true)
       try {
         const [dailyRes, overviewRes] = await Promise.all([
-          fetch(`/api/dashboard/daily?statementId=${statementId}`),
-          fetch(`/api/dashboard/accounts/${accountId}/budget`),
+          fetch(`/api/dashboard/daily?year=${year}&month=${month}`),
+          fetch(`/api/dashboard/overview?year=${year}&month=${month}`),
         ])
         const dailyData = await dailyRes.json()
         const overviewData = await overviewRes.json()
@@ -55,7 +55,7 @@ export default function NetThisMonthCard({ statementId, accountId, linkText, onL
     }
 
     fetchData()
-  }, [statementId, accountId])
+  }, [year, month])
 
   const current = overview[0]
   const previous = overview[1]

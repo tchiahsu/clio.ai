@@ -2,22 +2,23 @@ import { useEffect, useState } from 'react';
 import SectionHeader from '../layout/SectionHeader';
 
 interface TotalSpendingCardProps {
-  statementId: number
+  year: number
+  month: number
   totalExpenses: number
   linkText: string
   onLinkClick?: () => void
 }
 
-export default function TotalSpendingCard({ statementId, totalExpenses, linkText, onLinkClick }: TotalSpendingCardProps) {
+export default function TotalSpendingCard({ year, month, totalExpenses, linkText, onLinkClick }: TotalSpendingCardProps) {
   const [totalBudgeted, setTotalBudgeted] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (!statementId) return
+    if (!year || !month) return
     const fetchBudget = async () => {
       setIsLoading(true)
       try {
-        const res = await fetch(`/api/budgets?statementId=${statementId}`)
+        const res = await fetch(`/api/budgets?year=${year}&month=${month}`)
         const result = await res.json()
         setTotalBudgeted(Number(result.total_budgeted))
       } catch {
@@ -27,7 +28,7 @@ export default function TotalSpendingCard({ statementId, totalExpenses, linkText
       }
     }
     fetchBudget()
-  }, [statementId])
+  }, [year, month])
 
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)

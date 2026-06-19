@@ -13,7 +13,6 @@ import { GoPencil } from "react-icons/go";
 
 
 interface BudgetOverview {
-  statement_id: number
   date: string
   total_income: number
   total_expenses: number
@@ -42,7 +41,7 @@ interface Goal {
 }
 
 export default function Budget() {
-  const { selectedId, statements } = useStatements()
+  const { selectedPeriod } = useStatements()
   const [overview, setOverview] = useState<BudgetOverview[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [categories, setCategories] = useState<CategorySpend[]>([])
@@ -54,14 +53,13 @@ export default function Budget() {
   const [deletingGoal, setDeletingGoal] = useState<Goal | null>(null)
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
 
-  const activeStatement = statements.find(s => s.statement_id === selectedId)
-
   useEffect(() => {
-    if (!activeStatement?.account_id) return
+    if (!selectedPeriod) return
+    const { year, month } = selectedPeriod
     const fetchOverview = async () => {
       setIsLoading(true)
       try {
-        const res = await fetch(`/api/dashboard/accounts/${activeStatement.account_id}/budget`)
+        const res = await fetch(`/api/dashboard/overview?year=${year}&month=${month}`)
         const result = await res.json()
         setOverview(result.data ?? [])
       } catch {
@@ -71,18 +69,19 @@ export default function Budget() {
       }
     }
     fetchOverview()
-  }, [activeStatement?.account_id])
+  }, [selectedPeriod])
 
   const current = overview[0]
   const previous = overview[1]
 
   useEffect(() => {
-    if (!selectedId) return
+    if (!selectedPeriod) return
+    const { year, month } = selectedPeriod
     const fetchCategoryData = async () => {
       try {
         const [categoriesRes, budgetsRes] = await Promise.all([
-          fetch(`/api/dashboard/categories?statementId=${selectedId}`),
-          fetch(`/api/budgets?statementId=${selectedId}`),
+          fetch(`/api/dashboard/categories?year=${year}&month=${month}`),
+          fetch(`/api/budgets?year=${year}&month=${month}`),
         ])
         const categoriesData = await categoriesRes.json()
         const budgetsData = await budgetsRes.json()
@@ -93,14 +92,17 @@ export default function Budget() {
       }
     }
     fetchCategoryData()
-  }, [selectedId])
-  
+  }, [selectedPeriod])
+
 
   useEffect(() => {
-    if (!previous?.statement_id) return
+    // The previous-month spend (for the per-category vs-last-month deltas) comes
+    // from the second overview row; derive its year/month from that row's date.
+    if (!previous?.date) return
+    const [year, month] = previous.date.split('-').map(Number)
     const fetchPreviousCategories = async () => {
       try {
-        const res = await fetch(`/api/dashboard/categories?statementId=${previous.statement_id}`)
+        const res = await fetch(`/api/dashboard/categories?year=${year}&month=${month}`)
         const result = await res.json()
         setPreviousCategories(result.data ?? [])
       } catch {
@@ -108,7 +110,7 @@ export default function Budget() {
       }
     }
     fetchPreviousCategories()
-  }, [previous?.statement_id])
+  }, [previous?.date])
 
   useEffect(() => {
     const fetchGoals = async () => {
@@ -256,7 +258,7 @@ export default function Budget() {
         </div>
       )}
 
-      {editingBudgets && selectedId && (
+      {editingBudgets && selectedPeriod && (
         <EditBudgetsModal
           categories={mergedCategories.map(c => ({
             category_id: c.category_id,
@@ -280,13 +282,14 @@ export default function Budget() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   categoryName: u.categoryName,
-                  statementId: selectedId,
+                  year: selectedPeriod.year,
+                  month: selectedPeriod.month,
                   amount: u.amount,
                 }),
               })
             ))
             setEditingBudgets(false)
-            const res = await fetch(`/api/budgets?statementId=${selectedId}`)
+            const res = await fetch(`/api/budgets?year=${selectedPeriod.year}&month=${selectedPeriod.month}`)
             const result = await res.json()
             setBudgetItems(result.data)
           }}

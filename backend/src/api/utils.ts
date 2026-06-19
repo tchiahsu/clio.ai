@@ -28,3 +28,17 @@ export function getParamId(req: Request, param = "id"): number {
     const n = Number(req.params[param]);
     return Number.isFinite(n) && n > 0 ? Math.trunc(n) : 0;
 }
+
+/**
+ * Reads the selected month from a request as { year, month } (month is 1-12).
+ * The app is month-centric: data endpoints are scoped to a calendar month across
+ * all of the user's accounts. Looks in the query string first, then the body
+ * (for POSTs). Returns null if either value is missing or out of range.
+ */
+export function getYearMonth(req: Request): { year: number; month: number } | null {
+    const year = toInt(req.query.year ?? req.body?.year);
+    const month = toInt(req.query.month ?? req.body?.month);
+    if (year === undefined || month === undefined) return null;
+    if (year < 1900 || year > 9999 || month < 1 || month > 12) return null;
+    return { year, month };
+}

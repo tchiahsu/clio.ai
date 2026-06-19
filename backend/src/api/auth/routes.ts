@@ -1,6 +1,6 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { postLogin, postLogout, postRegister, getMe } from "./controller.js";
+import { postLogin, postLogout, postRegister, postDemoLogin, getMe } from "./controller.js";
 import { requireAuth } from "../../middleware/requireAuth.js";
  
 // Limit login and register to 10 attempts per 15 minutes per IP.
@@ -17,6 +17,7 @@ const authRouter = Router();
  
 authRouter.post("/login",    authLimiter, postLogin);
 authRouter.post("/register", authLimiter, postRegister);
+authRouter.post("/demo",     authLimiter, postDemoLogin);
 authRouter.post("/logout",   requireAuth, postLogout);
 authRouter.get("/me",        requireAuth, getMe);
  

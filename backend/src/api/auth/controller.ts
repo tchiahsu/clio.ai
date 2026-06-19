@@ -5,6 +5,10 @@ import { sqlGetUserLogin, sqlCreateUser, sqlGetUserById } from "./sql.js";
 import { createSession, deleteSession, getSession } from "./sessionStore.js";
 import { getSessionCookies } from "./cookies.js";
 
+// The account the "View demo" button signs into. Configurable so a deployment
+// can point at a different seeded showcase account.
+const DEMO_EMAIL = (process.env.DEMO_EMAIL ?? "demo@example.com").toLowerCase();
+
 export async function postLogin(req: Request, res: Response) {
     try {
         const emailInput = req.body?.email;
@@ -40,6 +44,31 @@ export async function postLogin(req: Request, res: Response) {
         });
     } catch (err) {
         console.error("postLogin error:", err);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+}
+
+/**
+ * Logs the caller into the shared demo account without credentials, so visitors
+ * can explore the app with seeded data. No password is checked or exposed — the
+ * demo account is intentionally public.
+ */
+export async function postDemoLogin(_req: Request, res: Response) {
+    try {
+        const user = await sqlGetUserLogin(pool, DEMO_EMAIL);
+        if (!user) {
+            return res.status(404).json({ error: "Demo account is not available" });
+        }
+
+        const { sessionId } = createSession(user.user_id);
+        res.cookie("session", sessionId, getSessionCookies());
+
+        return res.json({
+            ok: true,
+            user: { id: user.user_id, email: user.email },
+        });
+    } catch (err) {
+        console.error("postDemoLogin error:", err);
         return res.status(500).json({ error: "Internal Server Error" });
     }
 }

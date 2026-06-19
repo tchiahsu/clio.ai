@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { LuSparkles, LuLoader, LuPlay } from 'react-icons/lu'
+import { LuSparkles, LuLoader } from 'react-icons/lu'
 import { useAuth } from '../../context/AuthContext'
 
 type Mode = 'login' | 'signup'
@@ -63,7 +63,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded-2xl p-7 flex flex-col gap-5 bg-clio-glass border border-clio-glass-border backdrop-blur-xl shadow-lg">
+      <div className="w-95 h-150 rounded-2xl p-7 flex flex-col gap-5 bg-clio-glass border border-clio-glass-border backdrop-blur-xl shadow-lg">
 
         {/* Logo / heading */}
         <div className="flex flex-col items-center gap-3 text-center">
@@ -78,19 +78,24 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Mode toggle */}
-        <div className="flex p-1 rounded-xl bg-white/40 border border-white/50 text-[13px]">
+        {/* Mode toggle — segmented control with a sliding highlight */}
+        <div className="relative flex w-full p-1 rounded-xl bg-gray-200 border border-gray-300 text-[13px]">
+          {/* Sliding highlight: same width as one button, translates between the two */}
+          <span
+            className="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-lg bg-gray-900 shadow-sm transition-transform duration-300 ease-out"
+            style={{ transform: mode === 'signup' ? 'translateX(100%)' : 'translateX(0)' }}
+          />
           <button
             type="button"
             onClick={() => switchMode('login')}
-            className={`flex-1 py-1.5 rounded-lg transition-colors ${mode === 'login' ? 'bg-clio-primary text-clio-primary-foreground' : 'text-clio-muted-foreground hover:text-gray-700'}`}
+            className={`relative z-10 flex-1 py-1.5 rounded-lg font-medium transition-colors duration-200 ${mode === 'login' ? 'text-white' : 'text-gray-500 hover:text-gray-700'}`}
           >
             Log in
           </button>
           <button
             type="button"
             onClick={() => switchMode('signup')}
-            className={`flex-1 py-1.5 rounded-lg transition-colors ${mode === 'signup' ? 'bg-clio-primary text-clio-primary-foreground' : 'text-clio-muted-foreground hover:text-gray-700'}`}
+            className={`relative z-10 flex-1 py-1.5 rounded-lg font-medium transition-colors duration-200 ${mode === 'signup' ? 'text-white' : 'text-gray-500 hover:text-gray-700'}`}
           >
             Sign up
           </button>
@@ -146,8 +151,8 @@ export default function Login() {
           <button
             type="submit"
             disabled={submitting || demoLoading}
-            className="mt-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[14px] font-medium
-              bg-clio-primary text-clio-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="mt-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[14px] font-medium
+              bg-black text-white hover:bg-gray-800 transition-colors disabled:opacity-50"
           >
             {submitting
               ? <><LuLoader size={15} className="animate-spin" /> {mode === 'login' ? 'Signing in…' : 'Creating account…'}</>
@@ -156,10 +161,10 @@ export default function Login() {
         </form>
 
         {/* Divider */}
-        <div className="flex items-center gap-3 text-[11px] text-clio-muted-foreground">
-          <div className="flex-1 h-px bg-clio-glass-border" />
+        <div className="flex items-center gap-3 text-[11px] text-gray-400">
+          <div className="flex-1 h-px bg-gray-300" />
           or
-          <div className="flex-1 h-px bg-clio-glass-border" />
+          <div className="flex-1 h-px bg-gray-300" />
         </div>
 
         {/* One-click demo — signs into the shared demo account with seeded data */}
@@ -167,12 +172,12 @@ export default function Login() {
           type="button"
           onClick={handleDemo}
           disabled={demoLoading || submitting}
-          className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[14px] font-medium
-            bg-white/60 border border-white/60 text-clio-primary hover:bg-white/80 transition-colors disabled:opacity-50"
+          className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-[14px] font-medium
+            bg-[#007bff] text-white hover:bg-[#006ae0] transition-colors disabled:opacity-50"
         >
           {demoLoading
             ? <><LuLoader size={15} className="animate-spin" /> Loading demo…</>
-            : <><LuPlay size={14} /> View demo</>}
+            : 'View Demo'}
         </button>
 
         <p className="text-center text-[12px] text-clio-muted-foreground">

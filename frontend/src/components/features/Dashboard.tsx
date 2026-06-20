@@ -37,14 +37,9 @@ interface BudgetItem {
   spent: number
 }
 
-function formatLabel(s: { bank_name: string; account_type: string; period_end: string }) {
-  const date = new Date(s.period_end).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-  return `${s.bank_name} ${s.account_type} — ${date}`
-}
-
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { selectedId, statements } = useStatements()
+  const { selectedPeriod, months, statements } = useStatements()
   const { user } = useAuth()
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
@@ -53,19 +48,27 @@ export default function Dashboard() {
   const [goals, setGoals] = useState<Goal[]>([])
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([])
 
-  const activeStatement = statements.find(s => s.statement_id === selectedId)
+  const activeMonth = months.find(m => selectedPeriod && m.year === selectedPeriod.year && m.month === selectedPeriod.month)
+
+  // Statements behind the selected month — surfaced on hover over the month pill.
+  const monthStatements = statements.filter(s => {
+    if (s.current_status !== 'complete' || !selectedPeriod) return false
+    const [y, m] = s.period_start.split('-').map(Number)
+    return y === selectedPeriod.year && m === selectedPeriod.month
+  })
 
   const displayName = !user || user.email === 'demo@example.com' ? 'Guest' : user.firstName
 
   useEffect(() => {
-    if (!selectedId) return
+    if (!selectedPeriod) return
+    const { year, month } = selectedPeriod
     const fetchDashboardData = async () => {
       setIsLoading(true)
       try {
         const [summaryRes, categoriesRes, budgetsRes] = await Promise.all([
-          fetch(`/api/dashboard/totals?statementId=${selectedId}`),
-          fetch(`/api/dashboard/categories?statementId=${selectedId}`),
-          fetch(`/api/budgets?statementId=${selectedId}`),
+          fetch(`/api/dashboard/totals?year=${year}&month=${month}`),
+          fetch(`/api/dashboard/categories?year=${year}&month=${month}`),
+          fetch(`/api/budgets?year=${year}&month=${month}`),
         ])
         const summaryData = await summaryRes.json()
         const categoriesData = await categoriesRes.json()
@@ -80,7 +83,7 @@ export default function Dashboard() {
       }
     }
     fetchDashboardData()
-  }, [selectedId])
+  }, [selectedPeriod])
 
   useEffect(() => {
     const fetchGoals = async () => {
@@ -120,20 +123,43 @@ export default function Dashboard() {
           <h1 className="text-4xl font-bold text-gray-900">Hello, {displayName}</h1>
         </div>
         <div className="flex items-center gap-3">
-          {activeStatement && (
-            <div
-              className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-white shadow-sm"
-              style={{ background: 'linear-gradient(135deg, var(--clio-glass) 0%, rgba(255,255,255,0.7) 100%)' }}
-            >
+          {activeMonth && (
+            <div className="relative group">
               <div
-                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                style={{ backgroundColor: 'var(--clio-primary)', color: 'var(--clio-primary-foreground)' }}
+                className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-white shadow-sm cursor-default"
+                style={{ background: 'linear-gradient(135deg, var(--clio-glass) 0%, rgba(255,255,255,0.7) 100%)' }}
               >
-                <BsBank2 size={14} />
+                <div
+                  className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: 'var(--clio-primary)', color: 'var(--clio-primary-foreground)' }}
+                >
+                  <BsBank2 size={14} />
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-widest text-gray-400 leading-none mb-0.5">Viewing</p>
+                  <p className="text-[13px] font-semibold text-gray-800 leading-tight">
+                    {activeMonth.label} · all accounts
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-widest text-gray-400 leading-none mb-0.5">Statement</p>
-                <p className="text-[13px] font-semibold text-gray-800 leading-tight">{formatLabel(activeStatement)}</p>
+
+              {/* Hover: the statements that make up this month */}
+              <div className="absolute right-0 top-full mt-2 z-30 w-64 rounded-xl bg-white border border-gray-100 shadow-lg p-3
+                opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity">
+                <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">
+                  {activeMonth.label} · {monthStatements.length} {monthStatements.length === 1 ? 'statement' : 'statements'}
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {monthStatements.map(s => (
+                    <div key={s.statement_id} className="flex items-center gap-2 text-[12px] text-gray-700">
+                      <BsBank2 size={11} className="text-gray-400 shrink-0" />
+                      <span className="truncate">{s.bank_name} {s.account_type}</span>
+                    </div>
+                  ))}
+                  {monthStatements.length === 0 && (
+                    <span className="text-[12px] text-gray-400">No statements</span>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -144,16 +170,16 @@ export default function Dashboard() {
 
       {isLoading ? (
         <div className="text-sm text-gray-400">Loading…</div>
-      ) : summary && selectedId ? (
+      ) : summary && selectedPeriod ? (
         <div className="grid grid-cols-2 gap-4">
-          <TotalSpendingCard statementId={selectedId} totalExpenses={summary.total_expenses} linkText='Transactions' onLinkClick={() => navigate('/transactions')} />
-          <NetThisMonthCard statementId={selectedId} accountId={activeStatement?.account_id ?? 0} linkText='Cash Flow' onLinkClick={() => navigate('/transactions')} />
+          <TotalSpendingCard year={selectedPeriod.year} month={selectedPeriod.month} totalExpenses={summary.total_expenses} linkText='Transactions' onLinkClick={() => navigate('/transactions')} />
+          <NetThisMonthCard year={selectedPeriod.year} month={selectedPeriod.month} linkText='Cash Flow' onLinkClick={() => navigate('/transactions')} />
         </div>
       ) : (
         <div className="text-sm text-gray-400">
-          {statements.length === 0
+          {months.length === 0
             ? 'Upload a bank statement using the sidebar to get started.'
-            : 'No statement selected.'}
+            : 'No month selected.'}
         </div>
       )}
 

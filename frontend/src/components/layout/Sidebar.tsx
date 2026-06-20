@@ -19,11 +19,6 @@ const navItems = [
   { name: 'Statements',   path: '/statements',   icon: <LuFileText /> },
 ]
 
-function formatLabel(s: { bank_name: string; account_type: string; period_end: string }) {
-  const date = new Date(s.period_end).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-  return `${s.bank_name} ${s.account_type} — ${date}`
-}
-
 interface Chat {
   chat_id: number
   title: string
@@ -58,7 +53,7 @@ function SectionHeader({
 
 export default function Sidebar() {
   const navigate = useNavigate()
-  const { statements, selectedId, setSelectedId, isLoading, reload } = useStatements()
+  const { months, selectedPeriod, setSelectedPeriod, isLoading, reload } = useStatements()
   const { user, logout } = useAuth()
 
   const [menuOpen, setMenuOpen]               = useState(false)
@@ -156,12 +151,11 @@ export default function Sidebar() {
       const result = await res.json()
       if (!res.ok) { setUploadError(result.error ?? 'Upload failed'); return }
       const statementId: number = result.statementId
-      const finalStatus = await pollUntilComplete(statementId)
+      await pollUntilComplete(statementId)
+      // Reload the statement list; the context derives the available months and
+      // reconciles the selected period (keeping it, or falling back to the
+      // newest month) once the new statement appears.
       await reload()
-      // Only auto-select the upload if it actually completed; otherwise leave the
-      // context's reconciliation to pick a valid (complete) statement so pages
-      // don't fetch data for a failed/processing one.
-      if (finalStatus === 'complete') setSelectedId(statementId)
     } catch (err) {
       console.error('Upload failed', err)
     } finally {
@@ -184,8 +178,7 @@ export default function Sidebar() {
     return undefined
   }
 
-  const completeStatements = statements.filter(s => s.current_status === 'complete')
-  const selectedStatement = completeStatements.find(s => s.statement_id === selectedId)
+  const selectedMonth = months.find(m => selectedPeriod && m.year === selectedPeriod.year && m.month === selectedPeriod.month)
 
   return (
     <>
@@ -276,17 +269,11 @@ export default function Sidebar() {
 
         <div className="h-px bg-clio-glass-border mx-2 mb-2 shrink-0" />
 
-        {/* ── Statement selector card ────────────────────────────────────── */}
+        {/* ── Month selector card ────────────────────────────────────────── */}
         <div className="rounded-2xl p-3.5 bg-glass-inset border border-clio-glass-border shadow-sm flex flex-col gap-2 shrink-0 mx-0.5 mb-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase tracking-widest text-clio-muted-foreground">Statement</span>
+            <span className="text-[11px] uppercase tracking-widest text-clio-muted-foreground">Month</span>
             <div className="flex items-center gap-1.5">
-              {statements.some(s => s.current_status === 'processing' || s.current_status === 'queued') && (
-                <span className="text-[11px] text-amber-500 flex items-center gap-1">
-                  <LuLoader size={10} className="animate-spin" />
-                  {statements.filter(s => s.current_status !== 'complete' && s.current_status !== 'failed').length}
-                </span>
-              )}
               <input type="file" ref={fileInputRef} className="hidden" accept="application/pdf" onChange={handleFileUpload} />
               <button
                 disabled={uploading}
@@ -312,9 +299,9 @@ export default function Sidebar() {
             >
               <span className="text-clio-foreground-70 truncate">
                 {isLoading ? 'Loading…'
-                  : selectedStatement ? formatLabel(selectedStatement)
-                  : completeStatements.length === 0 ? 'No statements yet'
-                  : 'Select a statement'}
+                  : selectedMonth ? selectedMonth.label
+                  : months.length === 0 ? 'No statements yet'
+                  : 'Select a month'}
               </span>
               <LuChevronDown size={12} className={`text-clio-muted-foreground transition-transform shrink-0 ml-1 ${statementPickerOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -324,12 +311,12 @@ export default function Sidebar() {
                 className="absolute p-2 flex flex-col gap-2 left-0 right-0 z-20 bottom-full mb-1 rounded-xl border border-clio-glass-border shadow-lg overflow-hidden max-h-48 overflow-y-auto"
                 style={{ backgroundColor: 'white' }}
               >
-                {completeStatements.map(s => {
-                  const isSelected = s.statement_id === selectedId
+                {months.map(m => {
+                  const isSelected = selectedPeriod?.year === m.year && selectedPeriod?.month === m.month
                   return (
                     <button
-                      key={s.statement_id}
-                      onClick={() => { setSelectedId(s.statement_id); setStatementPickerOpen(false) }}
+                      key={m.key}
+                      onClick={() => { setSelectedPeriod({ year: m.year, month: m.month }); setStatementPickerOpen(false) }}
                       className="w-full flex items-center justify-between gap-2 px-4 py-3 text-[12px]! text-left rounded-xl"
                       style={{
                         backgroundColor: isSelected ? '#f3f4f6' : 'white',
@@ -339,7 +326,10 @@ export default function Sidebar() {
                       onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#f3f4f6' }}
                       onMouseLeave={e => { e.currentTarget.style.backgroundColor = isSelected ? '#f3f4f6' : 'white' }}
                     >
-                      <span className="truncate ml-2">{formatLabel(s)}</span>
+                      <span className="truncate ml-2">{m.label}</span>
+                      <span className="text-[11px] text-gray-400 shrink-0">
+                        {m.count} {m.count === 1 ? 'statement' : 'statements'}
+                      </span>
                     </button>
                   )
                 })}

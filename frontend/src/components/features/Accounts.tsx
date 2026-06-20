@@ -32,7 +32,7 @@ interface Transaction {
 }
 
 export default function Accounts() {
-  const { reload: reloadStatements } = useStatements()
+  const { reload: reloadStatements, selectedPeriod, months } = useStatements()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [summary, setSummary] = useState<AccountSummary | null>(null)
@@ -56,13 +56,14 @@ export default function Accounts() {
   }, [])
 
   useEffect(() => {
-    if (!selectedId) return
+    if (!selectedId || !selectedPeriod) return
+    const { year, month } = selectedPeriod
     const fetchAccountData = async () => {
       setIsLoading(true)
       try {
         const [summaryRes, transactionsRes] = await Promise.all([
-          fetch(`/api/accounts/${selectedId}/summary`),
-          fetch(`/api/accounts/${selectedId}/transactions`),
+          fetch(`/api/accounts/${selectedId}/summary?year=${year}&month=${month}`),
+          fetch(`/api/accounts/${selectedId}/transactions?year=${year}&month=${month}`),
         ])
         const summaryData = await summaryRes.json()
         const transactionsData = await transactionsRes.json()
@@ -75,7 +76,9 @@ export default function Accounts() {
       }
     }
     fetchAccountData()
-  }, [selectedId])
+  }, [selectedId, selectedPeriod])
+
+  const activeMonth = months.find(m => selectedPeriod && m.year === selectedPeriod.year && m.month === selectedPeriod.month)
 
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
@@ -173,7 +176,9 @@ export default function Accounts() {
                     </h2>
                   </div>
                   <div className="bg-clio-glass shadow-sm rounded-2xl p-4 flex flex-col gap-1">
-                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest">Spent this month</p>
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest">
+                      Spent in {activeMonth?.label ?? 'month'}
+                    </p>
                     <h2 className="text-3xl font-bold text-gray-900">
                       {formatCurrency(Number(summary.spent_this_month))}
                     </h2>

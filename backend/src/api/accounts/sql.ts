@@ -20,31 +20,33 @@ export async function sqlAllAccountsList(pool: Pool, userId: number) {
 }
  
 /**
- * Get balance total and masked account number for a specific account.
+ * Get the all-time balance, the selected month's spend, and masked account
+ * number for a specific account. account_total is the running all-time balance;
+ * spent_this_month is scoped to the selected month ($3 = year, $4 = month) and
+ * excludes internal transfers, matching how spend is counted everywhere else.
  * userId check ensures users can only access their own accounts.
  */
-export async function sqlAccountSummary(pool: Pool, accountId: number, userId: number) {
+export async function sqlAccountSummary(pool: Pool, accountId: number, userId: number, year: number, month: number) {
     const res = await pool.query(
         `
        SELECT
             COALESCE(SUM(t.amount), 0) AS account_total,
-            COALESCE(SUM(CASE WHEN t.amount < 0 
-                AND DATE_TRUNC('month', t.transaction_date) = (
-                    SELECT DATE_TRUNC('month', MAX(t2.transaction_date))
-                    FROM transactions t2
-                    WHERE t2.account_id = $1 AND t2.user_id = $2
-                )
+            COALESCE(SUM(CASE WHEN t.amount < 0
+                AND t.transaction_date >= make_date($3, $4, 1)
+                AND t.transaction_date <  make_date($3, $4, 1) + INTERVAL '1 month'
+                AND cat.category_name IS DISTINCT FROM 'transfers'
                 THEN -t.amount ELSE 0 END), 0) AS spent_this_month,
             a.account_number,
             a.bank_name,
             a.account_type
         FROM accounts a
         LEFT JOIN transactions t ON t.account_id = a.account_id
+        LEFT JOIN categories cat ON cat.category_id = t.category_id
         WHERE a.account_id = $1
         AND a.user_id = $2
         GROUP BY a.account_number, a.bank_name, a.account_type
         `,
-        [accountId, userId]
+        [accountId, userId, year, month]
     );
     return res.rows[0] ?? null;
 }
@@ -93,9 +95,10 @@ export async function sqlDeleteAccount(pool: Pool, accountId: number, userId: nu
 }
  
 /**
- * All transactions for an account, scoped to the authenticated user.
+ * Transactions for an account in the selected month ($3 = year, $4 = month),
+ * scoped to the authenticated user.
  */
-export async function sqlAccountTransaction(pool: Pool, accountId: number, userId: number) {
+export async function sqlAccountTransaction(pool: Pool, accountId: number, userId: number, year: number, month: number) {
     const res = await pool.query(
         `
         SELECT
@@ -111,9 +114,11 @@ export async function sqlAccountTransaction(pool: Pool, accountId: number, userI
         LEFT JOIN categories c ON c.category_id = t.category_id
         WHERE t.account_id = $1
           AND t.user_id = $2
+          AND t.transaction_date >= make_date($3, $4, 1)
+          AND t.transaction_date <  make_date($3, $4, 1) + INTERVAL '1 month'
         ORDER BY t.transaction_date DESC, t.transaction_id DESC
         `,
-        [accountId, userId]
+        [accountId, userId, year, month]
     );
     return res.rows;
 }

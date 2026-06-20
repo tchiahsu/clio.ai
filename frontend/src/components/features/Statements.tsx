@@ -3,13 +3,13 @@ import { useStatements, type Statement } from '../../context/StatementContext'
 import { useNavigate } from 'react-router-dom'
 import { LuUpload, LuFileText, LuTrash2, LuLoader } from 'react-icons/lu'
 
-interface GroupedStatements {
-  [year: string]: Statement[]
+function formatLabel(s: Statement) {
+  return `${s.bank_name} ${s.account_type}`
 }
 
-function formatLabel(s: Statement) {
-  const date = new Date(s.period_end).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-  return `${s.bank_name} ${s.account_type} — ${date}`
+function monthLabel(periodStart: string) {
+  const [y, m] = periodStart.split('-').map(Number)
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
 function formatUploadDate(s: Statement) {
@@ -22,7 +22,7 @@ export default function Statements() {
   // Read statements from the shared context so this page stays in sync with the
   // sidebar selector — upload/delete here go through reload(), and the context
   // reconciles the selection when a statement disappears.
-  const { statements, isLoading, setSelectedId, reload } = useStatements()
+  const { statements, isLoading, selectedPeriod, setSelectedPeriod, reload } = useStatements()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [uploading, setUploading] = useState(false)
@@ -65,8 +65,8 @@ export default function Statements() {
     setDeletingId(statementId)
     try {
       await fetch(`/api/statement?statementId=${statementId}`, { method: 'DELETE' })
-      // Refresh shared state; the context clears/reselects selectedId if the
-      // deleted statement was the active one, keeping the sidebar in sync.
+      // Refresh shared state; the context re-derives the available months and
+      // reconciles the selected period if this was the last statement in a month.
       await reload()
     } catch (err) {
       console.error('Delete failed', err)
@@ -75,16 +75,22 @@ export default function Statements() {
     }
   }
 
-  // Group statements by year of period_end, newest year first
-  const grouped: GroupedStatements = {}
-  statements
-    .filter(s => s.current_status === 'complete')
-    .forEach(s => {
-      const year = new Date(s.period_end).getFullYear().toString()
-      if (!grouped[year]) grouped[year] = []
-      grouped[year].push(s)
-    })
-  const years = Object.keys(grouped).sort((a, b) => Number(b) - Number(a))
+  // Show ALL statements, grouped by month (newest first). Clicking one selects
+  // that month as the app-wide period. The app is month-centric, but the library
+  // lists every statement so you can browse and jump to any month.
+  const groupedByMonth = Array.from(
+    statements
+      .filter(s => s.current_status === 'complete')
+      .sort((a, b) => b.period_start.localeCompare(a.period_start))
+      .reduce((map, s) => {
+        const [y, m] = s.period_start.split('-').map(Number)
+        const key = `${y}-${String(m).padStart(2, '0')}`
+        const entry = map.get(key) ?? { year: y, month: m, label: monthLabel(s.period_start), items: [] as Statement[] }
+        entry.items.push(s)
+        map.set(key, entry)
+        return map
+      }, new Map<string, { year: number; month: number; label: string; items: Statement[] }>())
+  )
 
   const processing = statements.filter(
     s => s.current_status === 'processing' || s.current_status === 'queued'
@@ -98,7 +104,7 @@ export default function Statements() {
         <div>
           <p className="text-[12px] uppercase tracking-widest text-gray-400">Library</p>
           <h1 className="text-4xl font-bold text-gray-900">Bank Statements</h1>
-          <p className="text-[13px] text-gray-400 mt-1">Grouped by statement year. Rename or delete anytime.</p>
+          <p className="text-[13px] text-gray-400 mt-1">All statements, grouped by month. Click one to view that month.</p>
         </div>
         <div className="flex items-center gap-2">
           <input
@@ -141,7 +147,7 @@ export default function Statements() {
       )}
 
       {/* Empty state */}
-      {!isLoading && years.length === 0 && (
+      {!isLoading && groupedByMonth.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
           <LuFileText size={32} className="text-gray-300" />
           <p className="text-[15px] font-medium text-gray-500">No statements yet</p>
@@ -156,57 +162,61 @@ export default function Statements() {
         </div>
       )}
 
-      {/* Grouped year sections */}
+      {/* All statements, grouped by month */}
       <div className="flex flex-col gap-4">
-        {years.map(year => (
-          <div
-            key={year}
-            className="rounded-2xl p-5 flex flex-col gap-1"
-            style={{ backgroundColor: 'var(--clio-glass)', border: '1px solid rgba(255,255,255,0.6)' }}
-          >
-            {/* Year header */}
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[22px] font-bold text-gray-900">{year}</h2>
-              <span className="text-[12px] text-gray-400">
-                {grouped[year].length} file{grouped[year].length !== 1 ? 's' : ''}
-              </span>
-            </div>
+        {groupedByMonth.map(([key, group]) => {
+          const isActive = selectedPeriod?.year === group.year && selectedPeriod?.month === group.month
+          return (
+            <div
+              key={key}
+              className="rounded-2xl p-5 flex flex-col gap-1"
+              style={{
+                backgroundColor: 'var(--clio-glass)',
+                border: isActive ? '1px solid var(--clio-primary)' : '1px solid rgba(255,255,255,0.6)',
+              }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-[22px] font-bold text-gray-900">{group.label}</h2>
+                <span className="text-[12px] text-gray-400">
+                  {group.items.length} file{group.items.length !== 1 ? 's' : ''}
+                </span>
+              </div>
 
-            {/* Statement rows */}
-            <div className="flex flex-col gap-1">
-              {grouped[year].map((s, i) => (
-                <div key={s.statement_id}>
-                  {i > 0 && <div className="h-px bg-gray-100 mx-1 my-1" />}
+              <div className="flex flex-col gap-1">
+                {group.items.map((s, i) => (
+                  <div key={s.statement_id}>
+                    {i > 0 && <div className="h-px bg-gray-100 mx-1 my-1" />}
 
-                  <div
-                    className="flex items-center gap-3 px-2 py-2.5 rounded-xl cursor-pointer transition-colors hover:bg-white/60"
-                    onClick={() => { setSelectedId(s.statement_id); navigate('/transactions') }}
-                  >
-                    <LuFileText size={16} className="text-gray-400 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[14px] font-medium text-gray-800 truncate">
-                        {formatLabel(s)}
-                      </div>
-                      <div className="text-[12px] text-gray-400">
-                        Uploaded {formatUploadDate(s)}
-                      </div>
-                    </div>
-                    <button
-                      onClick={e => { e.stopPropagation(); handleDelete(s.statement_id) }}
-                      disabled={deletingId === s.statement_id}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
+                    <div
+                      className="flex items-center gap-3 px-2 py-2.5 rounded-xl cursor-pointer transition-colors hover:bg-white/60"
+                      onClick={() => { setSelectedPeriod({ year: group.year, month: group.month }); navigate('/transactions') }}
                     >
-                      {deletingId === s.statement_id
-                        ? <LuLoader size={13} className="animate-spin" />
-                        : <LuTrash2 size={13} />
-                      }
-                    </button>
+                      <LuFileText size={16} className="text-gray-400 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[14px] font-medium text-gray-800 truncate">
+                          {formatLabel(s)}
+                        </div>
+                        <div className="text-[12px] text-gray-400">
+                          Uploaded {formatUploadDate(s)}
+                        </div>
+                      </div>
+                      <button
+                        onClick={e => { e.stopPropagation(); handleDelete(s.statement_id) }}
+                        disabled={deletingId === s.statement_id}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
+                      >
+                        {deletingId === s.statement_id
+                          ? <LuLoader size={13} className="animate-spin" />
+                          : <LuTrash2 size={13} />
+                        }
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
     </div>

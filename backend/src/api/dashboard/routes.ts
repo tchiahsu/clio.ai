@@ -12,6 +12,6 @@ export const dashboardRouter = Router();
 dashboardRouter.get("/totals", getDashboardTransactionTotals);
 dashboardRouter.get("/categories", getDashboardCategoryTotals);
 dashboardRouter.get("/transactions", getDashboardTransactions);
-dashboardRouter.get("/accounts/:id/budget", getBudgetOverview);
+dashboardRouter.get("/overview", getBudgetOverview);
 dashboardRouter.get("/daily", getDashboardDailyTotals);
 

@@ -407,13 +407,15 @@ SELECT statement_id,
 FROM running;
 
 -- =========================
--- BUDGETS — a sensible monthly target per top-level category, for every statement.
+-- BUDGETS — a sensible monthly target per top-level category, one row per
+-- (user, category, month). Budgets are month-level (not per-statement): a month
+-- spans every account, so the target is compared against the whole month's spend.
 -- =========================
-INSERT INTO budgets (user_id, category_id, category_name, statement_id, amount)
-SELECT s.user_id,
-       (SELECT MIN(c.category_id) FROM categories c WHERE c.user_id = s.user_id AND c.category_name = b.cat),
-       b.cat, s.statement_id, b.amount
-FROM statements s
+INSERT INTO budgets (user_id, category_id, category_name, period_start, amount)
+SELECT u.user_id,
+       (SELECT MIN(c.category_id) FROM categories c WHERE c.user_id = u.user_id AND c.category_name = b.cat),
+       b.cat, g.m::date, b.amount
+FROM (VALUES (1), (2)) AS u(user_id)
 CROSS JOIN (VALUES
   ('bills',         2900.00),
   ('food',           950.00),
@@ -421,7 +423,8 @@ CROSS JOIN (VALUES
   ('transport',      300.00),
   ('entertainment',  200.00),
   ('health',         120.00)
-) AS b(cat, amount);
+) AS b(cat, amount)
+CROSS JOIN generate_series(DATE '2026-01-01', DATE '2026-06-01', INTERVAL '1 month') AS g(m);
 
 -- =========================
 -- GOALS

@@ -10,12 +10,6 @@ interface CategoryRow {
   subcategory_name: string
 }
 
-interface SpendRow {
-  category_id: number
-  category_name: string
-  spent: number
-}
-
 interface TxRow {
   transaction_id: number
   transaction_date: string
@@ -107,10 +101,9 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
 }
 
 export default function Categories() {
-  const { selectedId, statements } = useStatements()
+  const { selectedPeriod, months } = useStatements()
 
   const [categoryDefs, setCategoryDefs] = useState<CategoryRow[]>([])
-  const [spendData, setSpendData] = useState<SpendRow[]>([])
   const [transactions, setTransactions] = useState<TxRow[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -125,20 +118,16 @@ export default function Categories() {
 
   useEffect(() => {
     setSelectedParent(null)
-  }, [selectedId])
+  }, [selectedPeriod])
 
   useEffect(() => {
-    if (!selectedId) return
+    if (!selectedPeriod) return
+    const { year, month } = selectedPeriod
     const fetchAll = async () => {
       setIsLoading(true)
       try {
-        const [spendRes, txRes] = await Promise.all([
-          fetch(`/api/dashboard/categories?statementId=${selectedId}`),
-          fetch(`/api/transaction?scope=statement&statementId=${selectedId}`),
-        ])
-        const spendJson = await spendRes.json()
-        const txJson = await txRes.json()
-        if (spendJson.data) setSpendData(spendJson.data)
+        const res = await fetch(`/api/transaction?scope=month&year=${year}&month=${month}`)
+        const txJson = await res.json()
         if (txJson.data) setTransactions(txJson.data)
       } catch (err) {
         console.error('Failed to fetch data', err)
@@ -147,15 +136,22 @@ export default function Categories() {
       }
     }
     fetchAll()
-  }, [selectedId])
+  }, [selectedPeriod])
 
+  // Build the category → subcategory spend breakdown from the month's actual
+  // transactions, mapping each one to its real subcategory via categoryDefs. (The
+  // budget endpoint only carries one representative subcategory per category, so
+  // it can't break spend down by subcategory.) Income and internal transfers are
+  // excluded — this view is about spending.
   const parentMap = new Map<string, { spent: number; subs: Map<string, number> }>()
-  for (const row of spendData) {
-    const spent = Number(row.spent)
-    if (spent <= 0) continue
-    const def = categoryDefs.find(d => d.category_id === row.category_id)
-    const parentName = def?.category_name ?? row.category_name ?? 'Other'
-    const subName = def?.subcategory_name ?? row.category_name ?? 'Other'
+  for (const tx of transactions) {
+    const amount = Number(tx.amount)
+    if (amount >= 0) continue // expenses only
+    const def = tx.category_id != null ? categoryDefs.find(d => d.category_id === tx.category_id) : undefined
+    const parentName = def?.category_name ?? tx.category_name ?? 'Uncategorized'
+    if (parentName === 'transfers') continue // internal transfers aren't spending
+    const subName = def?.subcategory_name ?? 'other'
+    const spent = Math.abs(amount)
     if (!parentMap.has(parentName)) parentMap.set(parentName, { spent: 0, subs: new Map() })
     const entry = parentMap.get(parentName)!
     entry.spent += spent
@@ -233,11 +229,10 @@ export default function Categories() {
           {/* ── Left 60% ──────────────────────────────────────────────── */}
           <div className="flex flex-col gap-4 min-w-0" style={{ flex: '0 0 60%' }}>
 
-            {/* Statement banner */}
+            {/* Month banner */}
             {(() => {
-              const stmt = statements.find(s => s.statement_id === selectedId)
-              if (!stmt) return null
-              const date = new Date(stmt.period_end).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+              const activeMonth = months.find(m => selectedPeriod && m.year === selectedPeriod.year && m.month === selectedPeriod.month)
+              if (!activeMonth) return null
               return (
                 <div className="flex items-center gap-4 px-5 py-4 rounded-2xl border border-white shadow-sm"
                   style={{ background: 'linear-gradient(135deg, var(--clio-glass) 0%, rgba(255,255,255,0.7) 100%)' }}>
@@ -246,11 +241,13 @@ export default function Categories() {
                     <BsBank2 size={15} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] uppercase tracking-widest text-gray-400 mb-0.5">Current statement</p>
+                    <p className="text-[11px] uppercase tracking-widest text-gray-400 mb-0.5">Viewing</p>
                     <p className="text-[15px] font-semibold text-gray-900 truncate leading-tight">
-                      {stmt.bank_name} {stmt.account_type}
+                      {activeMonth.label}
                     </p>
-                    <p className="text-[12px] text-gray-400">{date}</p>
+                    <p className="text-[12px] text-gray-400">
+                      All accounts · {activeMonth.count} {activeMonth.count === 1 ? 'statement' : 'statements'}
+                    </p>
                   </div>
                   <span
                     className="text-[10px] font-semibold px-2.5 py-1 rounded-full shrink-0 uppercase tracking-wide"

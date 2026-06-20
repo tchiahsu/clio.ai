@@ -15,6 +15,7 @@ interface Transaction {
   account_number: string
   merchant_name: string | null
   category_name: string | null
+  category_id: number | null
   category_confidence: number
   statement_id: number
 }
@@ -22,6 +23,7 @@ interface Transaction {
 interface Category {
   category_id: number
   category_name: string
+  subcategory_name: string
 }
 
 type SortDir = 'asc' | 'desc'
@@ -111,9 +113,19 @@ function CategoryBadge({ name }: { name: string | null }) {
   )
 }
 
-function formatLabel(s: { bank_name: string; account_type: string; period_end: string }) {
-  const date = new Date(s.period_end).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-  return `${s.bank_name} ${s.account_type} — ${date}`
+// A small chip marking which account a transaction belongs to. The app is
+// month-centric, so a single list mixes accounts — the badge keeps the source clear.
+function AccountBadge({ bankName, accountType }: { bankName: string; accountType: string }) {
+  const isCredit = accountType.toLowerCase().includes('credit')
+  const color = isCredit ? '#a855f7' : '#0ea5e9'
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide shrink-0"
+      style={{ backgroundColor: `${color}1a`, color }}
+    >
+      <BsBank2 size={9} /> {bankName}
+    </span>
+  )
 }
 
 const btnStyle = {
@@ -125,7 +137,7 @@ const btnStyle = {
 }
 
 export default function Transactions() {
-  const { selectedId, statements } = useStatements()
+  const { selectedPeriod, months } = useStatements()
 
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -149,8 +161,8 @@ export default function Transactions() {
     const fetch_ = async () => {
       setIsLoading(true)
       try {
-        const url = selectedId
-          ? `/api/transaction?scope=statement&statementId=${selectedId}`
+        const url = selectedPeriod
+          ? `/api/transaction?scope=month&year=${selectedPeriod.year}&month=${selectedPeriod.month}`
           : '/api/transaction?scope=all'
         const res = await fetch(url)
         const data = await res.json()
@@ -163,7 +175,7 @@ export default function Transactions() {
       }
     }
     fetch_()
-  }, [selectedId])
+  }, [selectedPeriod])
 
   const filterCategories = ['All', ...Array.from(new Set(transactions.map(t => t.category_name ?? 'Uncategorized'))).sort()]
 
@@ -210,11 +222,11 @@ export default function Transactions() {
         { method: 'PATCH' }
       )
       if (res.ok) {
-        const updated = { ...selectedTx, category_name: categoryName }
+        const updated = { ...selectedTx, category_name: categoryName, category_id: categoryId }
         setSelectedTx(updated)
         setTransactions(prev => prev.map(t =>
           t.transaction_id === selectedTx.transaction_id
-            ? { ...t, category_name: categoryName }
+            ? { ...t, category_name: categoryName, category_id: categoryId }
             : t
         ))
         setCategoryPickerOpen(false)
@@ -227,6 +239,18 @@ export default function Transactions() {
   }
 
   const isIncome = (n: number) => Number(n) > 0
+
+  // Group the full category list by top-level category so the picker can show
+  // every subcategory (e.g. food → fast_food, dining_out, coffee, …) rather than
+  // collapsing each category to a single entry.
+  const groupedCategories = Array.from(
+    categories.reduce((map, c) => {
+      const list = map.get(c.category_name) ?? []
+      list.push(c)
+      map.set(c.category_name, list)
+      return map
+    }, new Map<string, Category[]>())
+  )
 
   return (
     <div className="w-full h-full flex flex-col gap-4 p-2">
@@ -260,10 +284,10 @@ export default function Transactions() {
             )}
           </div>
 
-          {/* Current statement label */}
+          {/* Current month label */}
           {(() => {
-            const stmt = statements.find(s => s.statement_id === selectedId)
-            if (!stmt) return null
+            const activeMonth = months.find(m => selectedPeriod && m.year === selectedPeriod.year && m.month === selectedPeriod.month)
+            if (!activeMonth) return null
             return (
               <div
                 className="flex items-center gap-3 px-3 py-2 rounded-2xl border border-white shadow-sm shrink-0"
@@ -276,7 +300,7 @@ export default function Transactions() {
                   <BsBank2 size={11} />
                 </div>
                 <span className="text-[13px] font-medium text-gray-700 truncate" style={{ maxWidth: '260px' }}>
-                  {formatLabel(stmt)}
+                  {activeMonth.label} · all accounts
                 </span>
               </div>
             )
@@ -376,10 +400,7 @@ export default function Transactions() {
                             <div className={`w-0.5 h-6 rounded-full shrink-0 transition-colors ${isSelected ? 'bg-clio-primary' : 'bg-transparent group-hover:bg-gray-300'}`} />
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               <span className="text-[13px] font-medium text-gray-800 truncate min-w-0 shrink">{name}</span>
-                              <span className="text-[11px] text-gray-400 shrink-0">·</span>
-                              <span className="text-[11px] text-gray-400 truncate shrink-0">
-                                {tx.bank_name} {tx.account_type}
-                              </span>
+                              <AccountBadge bankName={tx.bank_name} accountType={tx.account_type} />
                               {tx.category_name && (
                                 <>
                                   <span className="text-[11px] text-gray-400 shrink-0">·</span>
@@ -444,25 +465,30 @@ export default function Transactions() {
                         <span className="text-[12px] text-gray-400 shrink-0"><MdEdit /></span>
                       </button>
                       {categoryPickerOpen && (
-                        <div className="absolute flex flex-col gap-2 px-3 py-3 left-0 z-30 mt-1 rounded-xl bg-white border border-gray-100 shadow-lg overflow-hidden w-52 max-h-52 overflow-y-auto">
-                          {Array.from(new Map(categories.map(c => [c.category_name, c])).values()).map(c => {
-                            const color = getInitialColor(c.category_name)
-                            const isActive = selectedTx.category_name === c.category_name
+                        <div className="absolute flex flex-col gap-1 px-2 py-2 left-0 z-30 mt-1 rounded-xl bg-white border border-gray-100 shadow-lg overflow-hidden w-56 max-h-64 overflow-y-auto">
+                          {groupedCategories.map(([parent, subs]) => {
+                            const color = getInitialColor(parent)
                             return (
-                              <button
-                                key={c.category_id}
-                                onClick={() => handleCategoryChange(c.category_id, c.category_name)}
-                                className="w-full text-left px-3 py-2 text-[12px] transition-colors flex items-center gap-2 hover:bg-gray-50"
-                                style={isActive ? { backgroundColor: `${color}15` } : {}}
-                              >
-                                <span
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide"
-                                  style={{ backgroundColor: `${color}20`, color }}
-                                >
-                                  {getCategoryEmoji(c.category_name)} {c.category_name}
-                                </span>
-                                {isActive && <span className="ml-auto mr-2 text-[10px]" style={{ color }}><FaCheck /></span>}
-                              </button>
+                              <div key={parent} className="flex flex-col">
+                                <div className="flex items-center gap-1.5 px-2 pt-2 pb-1">
+                                  <span className="text-[11px]">{getCategoryEmoji(parent)}</span>
+                                  <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{parent}</span>
+                                </div>
+                                {subs.map(c => {
+                                  const isActive = selectedTx.category_id === c.category_id
+                                  return (
+                                    <button
+                                      key={c.category_id}
+                                      onClick={() => handleCategoryChange(c.category_id, c.category_name)}
+                                      className="w-full text-left pl-7 pr-3 py-1.5 text-[12px] rounded-lg transition-colors flex items-center gap-2 hover:bg-gray-50"
+                                      style={isActive ? { backgroundColor: `${color}15` } : {}}
+                                    >
+                                      <span className="text-gray-700">{c.subcategory_name}</span>
+                                      {isActive && <span className="ml-auto text-[10px]" style={{ color }}><FaCheck /></span>}
+                                    </button>
+                                  )
+                                })}
+                              </div>
                             )
                           })}
                         </div>

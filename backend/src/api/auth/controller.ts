@@ -4,6 +4,7 @@ import pool from "../../database.js";
 import { sqlGetUserLogin, sqlCreateUser, sqlGetUserById } from "./sql.js";
 import { createSession, deleteSession, getSession } from "./sessionStore.js";
 import { getSessionCookies } from "./cookies.js";
+import { reseedDemo } from "../../db/reseed.js";
 
 // The account the "View demo" button signs into. Configurable so a deployment
 // can point at a different seeded showcase account.
@@ -55,6 +56,15 @@ export async function postLogin(req: Request, res: Response) {
  */
 export async function postDemoLogin(_req: Request, res: Response) {
     try {
+        // Reset the shared demo data to its seeded baseline so every visit starts
+        // from identical state and edits from a previous visit are discarded.
+        // A failed reset shouldn't take the demo offline, so we log and continue.
+        try {
+            await reseedDemo();
+        } catch (seedErr) {
+            console.error("Demo re-seed failed (serving existing data):", seedErr);
+        }
+
         const user = await sqlGetUserLogin(pool, DEMO_EMAIL);
         if (!user) {
             return res.status(404).json({ error: "Demo account is not available" });

@@ -29,6 +29,9 @@ app.use(
     })
 );
  
+// Health check — public, lightweight, used by the host's uptime probe.
+app.get("/health", (_req, res) => res.json({ ok: true }));
+
 // Public routes — no session required
 app.use("/auth", authRouter);
  

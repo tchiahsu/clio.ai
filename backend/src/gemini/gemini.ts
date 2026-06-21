@@ -83,7 +83,7 @@ const FALLBACK_MESSAGE =
     "I can only help with questions about your personal finances — your spending, income, transactions, budgets, accounts, and the places you pay. " +
     "Try asking something like \"How much do I spend on groceries?\", \"What's my biggest expense?\", or \"Where does most of my money go?\"";
 
-function buildChatSystemPrompt(): string {
+function buildChatSystemPrompt(period?: { year: number; month: number } | null): string {
     const now = new Date();
     const today = now.toISOString().split("T")[0]; // YYYY-MM-DD
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
@@ -92,9 +92,30 @@ function buildChatSystemPrompt(): string {
     const yearStart = new Date(now.getFullYear(), 0, 1).toISOString().split("T")[0];
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
+    // The period the user is currently viewing in the UI (year + 1-12 month).
+    // When the user doesn't name a time frame, this becomes the default filter.
+    const viewStart = period
+        ? new Date(period.year, period.month - 1, 1).toISOString().split("T")[0]
+        : null;
+    const viewEnd = period
+        ? new Date(period.year, period.month, 1).toISOString().split("T")[0]
+        : null;
+    const viewLabel = period
+        ? new Date(period.year, period.month - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+        : null;
+
+    // Default time-frame rule: prefer the viewed period when one is supplied,
+    // otherwise fall back to querying across all data.
+    const defaultTimeFrameLine = period
+        ? `DEFAULT (no time frame mentioned): filter to the period the user is currently viewing — ${viewLabel}: transaction_date >= DATE '${viewStart}' AND transaction_date < DATE '${viewEnd}'. Only query across all data when the user explicitly asks for overall/all-time/ever/total, or names a different range.`
+        : "DEFAULT: do NOT filter by date. Answer across ALL of the user's available transactions unless they explicitly mention a time frame. Never assume the data belongs to any particular year — derive any ranges from today's date.";
+
     const prompt = [
         "You are Clio, a friendly and sharp personal finance assistant. You answer questions about the user's own money — their transactions, spending, income, budgets, accounts, and the merchants they pay.",
         "Always return ONLY a valid JSON object — no markdown, no backticks, no prose outside the JSON.",
+        "",
+        "CONVERSATION MEMORY:",
+        "A 'Recent conversation' transcript may appear before the user's question. Treat it as memory of this ongoing chat: use it to resolve follow-ups and references such as 'what about last month?', 'and groceries?', 'why is that?', or 'show me more'. Carry over the subject of the previous turn — its category, merchant, and time frame — unless the new message changes it. If the new message only changes one dimension (e.g. just the time frame, or just the category), keep every other dimension identical to the prior question so the conversation stays coherent.",
         "",
         "UNDERSTANDING THE USER:",
         "People ask about money in many different ways — casual, indirect, vague, abbreviated, or with typos. Infer the underlying intent rather than matching keywords. Treat these as the same kind of question:",
@@ -111,13 +132,14 @@ function buildChatSystemPrompt(): string {
         "",
         "TIME RANGES:",
         `Today is ${today}.`,
-        "DEFAULT: do NOT filter by date. Answer across ALL of the user's available transactions unless they explicitly mention a time frame. Never assume the data belongs to any particular year — derive any ranges from today's date.",
+        defaultTimeFrameLine,
         "When the user DOES specify a time frame, use explicit DATE literals (never CURRENT_DATE):",
         `- \"this month\": transaction_date >= DATE '${thisMonthStart}' AND transaction_date < DATE '${nextMonthStart}'`,
         `- \"last month\": transaction_date >= DATE '${lastMonthStart}' AND transaction_date < DATE '${thisMonthStart}'`,
         `- \"this year\" / \"year to date\": transaction_date >= DATE '${yearStart}'`,
         `- \"recently\" / \"lately\": transaction_date >= DATE '${thirtyDaysAgo}'`,
         "- A named month/range the user gives: translate it to explicit DATE literals.",
+        "- \"all time\" / \"overall\" / \"ever\" / \"total\" / \"in total\": do NOT filter by date — include every transaction.",
         "",
         "CHOOSE ONE OF THREE ACTIONS:",
         "1) ANSWER — the question is about the user's finances and you can reasonably interpret it. Generate SQL + answer_template. When a detail is missing but a sensible default exists (no time frame → all data; 'spending' → expenses only, amount < 0), use the default and answer. Strongly prefer answering over asking.",
@@ -187,7 +209,8 @@ export type GeminiQueryResult = {
  */
 export async function generateFinancialQuery(
     question: string,
-    chatHistory: { speaker_type: string; message_content: string }[]
+    chatHistory: { speaker_type: string; message_content: string }[],
+    period?: { year: number; month: number } | null
 ): Promise<GeminiQueryResult> {
     // Build conversation context from last 10 messages
     const historyContext = chatHistory.length > 0
@@ -198,7 +221,7 @@ export async function generateFinancialQuery(
 
     const userMessage = `${historyContext}User question: ${question}`;
 
-    const raw = await callGemini(buildChatSystemPrompt(), userMessage);
+    const raw = await callGemini(buildChatSystemPrompt(period), userMessage);
 
     // Extract JSON from the response — Gemini sometimes wraps it in markdown
     // fences or adds explanation text before/after. We find the first { and

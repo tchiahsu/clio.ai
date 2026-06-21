@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { LuSparkles, LuArrowUp, LuChevronDown, LuChevronUp, LuPencil } from 'react-icons/lu'
+import { useStatements } from "../../context/StatementContext";
 
 interface Message {
   role: 'user' | 'assistant'
@@ -46,6 +47,7 @@ function saveSession(chatId: number | null, messages: Message[]) {
 
 export default function AskClio() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const { selectedPeriod } = useStatements()
 
   const initial = loadSession()
   const [isExpanded, setIsExpanded] = useState(false)
@@ -56,6 +58,13 @@ export default function AskClio() {
   const [chatId, setChatId] = useState<number | null>(initial.chatId)
   const [isNewChat, setIsNewChat] = useState(initial.chatId === null && initial.messages.length <= 1)
   const inputRef = useRef<HTMLInputElement>(null)
+  const messagesRef = useRef<HTMLDivElement>(null)
+
+  // Keep the newest message in view as the (fixed-height) history scrolls.
+  useEffect(() => {
+    const el = messagesRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [messages, isLoading, isExpanded])
 
   // Persist to sessionStorage whenever chat state changes
   useEffect(() => {
@@ -150,7 +159,9 @@ export default function AskClio() {
       const response = await fetch(`/api/chat/message?chatId=${currentChatId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: query }),
+        // Send the period the user is currently viewing so the assistant can
+        // default to it when the question doesn't name a time frame.
+        body: JSON.stringify({ content: query, period: selectedPeriod }),
       })
 
       if (!response.ok) throw new Error('Request failed')
@@ -222,7 +233,7 @@ export default function AskClio() {
       </div>
 
       {isExpanded && (
-        <div className="flex flex-col gap-2 mb-4">
+        <div ref={messagesRef} className="flex flex-col gap-2 mb-4 max-h-90 overflow-y-auto pr-1">
 
           {/* Show recent chats only on a fresh new chat */}
           {isNewChat && recentChats.map((chat) => (

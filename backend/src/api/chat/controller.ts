@@ -102,6 +102,18 @@ export async function saveChatMessage(req: Request, res: Response) {
             return res.status(400).json({ error: "Invalid input" });
         }
 
+        // Optional: the period the user is currently viewing in the UI. When the
+        // question names no time frame, the LLM defaults to this month/year.
+        const rawPeriod = req.body?.period;
+        const period =
+            rawPeriod &&
+            Number.isInteger(rawPeriod.year) &&
+            Number.isInteger(rawPeriod.month) &&
+            rawPeriod.month >= 1 &&
+            rawPeriod.month <= 12
+                ? { year: rawPeriod.year as number, month: rawPeriod.month as number }
+                : null;
+
         // ── 1. Save user message ─────────────────────────────────────────────
         const userData = await sqlNewMessage(pool, userId, chatId, "user", content.trim());
         if (!userData) return res.status(404).json({ error: "Chat not found" });
@@ -118,7 +130,7 @@ export async function saveChatMessage(req: Request, res: Response) {
 
         try {
             const { sql, params, answer_template, empty_message } =
-                await generateFinancialQuery(content.trim(), historyWithoutLatest);
+                await generateFinancialQuery(content.trim(), historyWithoutLatest, period);
 
             console.log("[Debug] sql:", sql);
             console.log("[Debug] params:", params);

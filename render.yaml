@@ -1,25 +1,24 @@
 # Render blueprint for Clio.
 #
+# The Postgres database lives on Neon (not Render). Before the first deploy,
+# create the Neon project and load the schema:
+#   psql "$NEON_DATABASE_URL" -f database/db_migrations.sql
+#   psql "$NEON_DATABASE_URL" -f database/db_seeding.sql
+#
 # After the first deploy:
-#   1. Run database/db_migrations.sql then database/db_seeding.sql against the
-#      clio-db instance (psql "$DATABASE_URL" -f database/db_migrations.sql ...).
+#   1. Set clio-backend's DATABASE_URL to the Neon connection string.
 #   2. Set clio-backend's CORS_ORIGIN to the deployed frontend URL.
 #   3. Confirm the frontend rewrite destination below points at the backend's
-#      real URL (Render names it from the service, usually clio-backend.onrender.com).
+#      real URL (Render names it from the service, usually clio-ai-backend.onrender.com).
 #
 # The frontend reaches the API through the same-origin /api rewrite below, which
 # strips the /api prefix to match the backend's root-mounted routes. This keeps
 # session cookies same-origin (the data fetches don't send cross-site credentials).
 
-databases:
-  - name: clio-db
-    databaseName: clio_db
-    plan: free
-
 services:
   # ---- Backend API (Node/Express) ----
   - type: web
-    name: clio-backend
+    name: clio-ai-backend
     runtime: node
     rootDir: backend
     plan: free
@@ -28,9 +27,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: clio-db
-          property: connectionString
+        sync: false   # set to the Neon connection string after the DB is created
       - key: PG_SSL
         value: "true"
       - key: NODE_ENV
@@ -44,7 +41,7 @@ services:
 
   # ---- Frontend (static Vite build) ----
   - type: web
-    name: clio-frontend
+    name: clio-ai
     runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
@@ -53,7 +50,7 @@ services:
       # Proxy API calls to the backend, stripping /api (same-origin → cookies work).
       - type: rewrite
         source: /api/*
-        destination: https://clio-backend.onrender.com/:splat
+        destination: https://clio-ai-backend.onrender.com/:splat
       # SPA fallback for client-side routing (must come after the /api rule).
       - type: rewrite
         source: /*

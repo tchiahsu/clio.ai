@@ -5,6 +5,7 @@
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
-    "@types/cors": "^2.8.19"
+    "@types/cors": "^2.8.19",
+    "@types/node": "^26.0.0"
   }
 }

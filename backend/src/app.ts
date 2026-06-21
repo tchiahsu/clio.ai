@@ -1,6 +1,9 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import { dashboardRouter } from "./api/dashboard/routes.js";
 import { transactionRouter } from "./api/transactions/routes.js";
 import { merchantsRouter } from "./api/merchants/routes.js";
@@ -32,18 +35,37 @@ app.use(
 // Health check — public, lightweight, used by the host's uptime probe.
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
+// All API routes live under /api so they don't collide with the static frontend
+// served below. The frontend already calls /api/... paths, and in dev Vite
+// proxies /api to this server (see frontend/vite.config.ts).
 // Public routes — no session required
-app.use("/auth", authRouter);
- 
+app.use("/api/auth", authRouter);
+
 // Protected routes — requireAuth middleware gates every handler below this line.
-app.use("/dashboard", requireAuth, dashboardRouter);
-app.use("/transaction", requireAuth, transactionRouter);
-app.use("/merchants", requireAuth, merchantsRouter);
-app.use("/categories", requireAuth, categoriesRouter);
-app.use("/accounts", requireAuth, accountRouter);
-app.use("/chat", requireAuth, chatRouter);
-app.use("/statement", requireAuth, statementRouter);
-app.use("/budgets", requireAuth, budgetRouter);
-app.use("/goals", requireAuth, goalRouter);
+app.use("/api/dashboard", requireAuth, dashboardRouter);
+app.use("/api/transaction", requireAuth, transactionRouter);
+app.use("/api/merchants", requireAuth, merchantsRouter);
+app.use("/api/categories", requireAuth, categoriesRouter);
+app.use("/api/accounts", requireAuth, accountRouter);
+app.use("/api/chat", requireAuth, chatRouter);
+app.use("/api/statement", requireAuth, statementRouter);
+app.use("/api/budgets", requireAuth, budgetRouter);
+app.use("/api/goals", requireAuth, goalRouter);
+
+// Serve the built frontend from the same origin (single-service deploy). This
+// only activates when the build exists, so local dev — where Vite serves the
+// frontend on its own port — is unaffected. Registered after the API routes so
+// /api/* and /health always win.
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+const frontendDist = path.resolve(dirname, "../../frontend/dist");
+if (fs.existsSync(frontendDist)) {
+    app.use(express.static(frontendDist));
+    // SPA fallback: any non-API GET returns index.html so client-side routes
+    // (e.g. /dashboard) resolve on refresh and deep links.
+    app.use((req, res, next) => {
+        if (req.method !== "GET" || req.path.startsWith("/api")) return next();
+        res.sendFile(path.join(frontendDist, "index.html"));
+    });
+}
 
 export default app;

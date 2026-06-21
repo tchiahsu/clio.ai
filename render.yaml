@@ -1,59 +1,38 @@
 # Render blueprint for Clio.
 #
+# Single web service: the Node/Express backend serves both the API (under /api)
+# and the built static frontend, so everything is one origin — session cookies
+# stay same-origin (sameSite=lax) and no CORS/proxy is involved.
+#
 # The Postgres database lives on Neon (not Render). Before the first deploy,
 # create the Neon project and load the schema:
 #   psql "$NEON_DATABASE_URL" -f database/db_migrations.sql
 #   psql "$NEON_DATABASE_URL" -f database/db_seeding.sql
 #
-# After the first deploy:
-#   1. Set clio-backend's DATABASE_URL to the Neon connection string.
-#   2. Set clio-backend's CORS_ORIGIN to the deployed frontend URL.
-#   3. Confirm the frontend rewrite destination below points at the backend's
-#      real URL (Render names it from the service, usually clio-ai-backend.onrender.com).
-#
-# The frontend reaches the API through the same-origin /api rewrite below, which
-# strips the /api prefix to match the backend's root-mounted routes. This keeps
-# session cookies same-origin (the data fetches don't send cross-site credentials).
+# After the first deploy, set DATABASE_URL to the Neon connection string
+# (and GEMINI_API_KEY if you want the "Ask Clio" chat).
 
 services:
-  # ---- Backend API (Node/Express) ----
   - type: web
-    name: clio-ai-backend
+    name: clio-ai
     runtime: node
-    rootDir: backend
     plan: free
-    # --include=dev: NODE_ENV=production (below) makes npm skip devDependencies,
-    # but tsc + @types/node live there and are needed to build. Force them in.
-    buildCommand: npm install --include=dev && npm run build
-    startCommand: npm start
+    # Build the frontend, then the backend. --include=dev on both: NODE_ENV=production
+    # makes npm skip devDependencies, but the build tools (vite, tsc, @types/*) live there.
+    buildCommand: >-
+      cd frontend && npm install --include=dev && npm run build &&
+      cd ../backend && npm install --include=dev && npm run build
+    # Run the backend from its own directory; it serves ../frontend/dist statically.
+    startCommand: cd backend && npm start
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
-        sync: false   # set to the Neon connection string after the DB is created
+        sync: false   # set to the Neon connection string
       - key: PG_SSL
         value: "true"
       - key: NODE_ENV
         value: production
       - key: SEED_SQL_PATH
         value: ../database/db_seeding.sql
-      - key: CORS_ORIGIN
-        sync: false   # set to the frontend URL after it deploys
       - key: GEMINI_API_KEY
         sync: false   # optional — only needed for the "Ask Clio" chat
-
-  # ---- Frontend (static Vite build) ----
-  - type: web
-    name: clio-ai
-    runtime: static
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    routes:
-      # Proxy API calls to the backend, stripping /api (same-origin → cookies work).
-      - type: rewrite
-        source: /api/*
-        destination: https://clio-ai-backend.onrender.com/:splat
-      # SPA fallback for client-side routing (must come after the /api rule).
-      - type: rewrite
-        source: /*
-        destination: /index.html

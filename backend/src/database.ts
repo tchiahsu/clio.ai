@@ -18,7 +18,7 @@ const ssl = useSsl ? { rejectUnauthorized: false } : undefined;
 // back to discrete PG_* vars for local development.
 const pool = new Pool(
   connectionString
-    ? { connectionString, ssl, options: "-c search_path=clio,public" }
+    ? { connectionString, ssl }
     : {
         user: process.env.PG_USER,
         host: process.env.PG_HOST,
@@ -26,9 +26,16 @@ const pool = new Pool(
         password: process.env.PG_PASSWORD,
         port: parseInt(process.env.PG_PORT || '5432', 10),
         ssl,
-        options: "-c search_path=clio,public",
       }
 );
+
+// Set the schema per-connection instead of via the `options` startup parameter:
+// Neon's pooled endpoint (PgBouncer) rejects startup params and errors with
+// "unsupported startup parameter in options: search_path". Running it as a query
+// on each new pooled connection works on both pooled and direct endpoints.
+pool.on('connect', (client) => {
+  client.query('SET search_path TO clio, public');
+});
 
 // Verify the PostgreSQL connection.
 async function verifyConnection() {

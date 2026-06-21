@@ -22,7 +22,9 @@ services:
     runtime: node
     rootDir: backend
     plan: free
-    buildCommand: npm install && npm run build
+    # --include=dev: NODE_ENV=production (below) makes npm skip devDependencies,
+    # but tsc + @types/node live there and are needed to build. Force them in.
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /health
     envVars:

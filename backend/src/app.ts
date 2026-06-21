@@ -18,6 +18,13 @@ import { requireAuth } from "./middleware/requireAuth.js";
 
 export const app = express();
 
+// Render (and most hosts) put a reverse proxy in front of the app, so requests
+// arrive with an X-Forwarded-For header. Trust the first proxy hop so Express
+// derives the real client IP — required for express-rate-limit to work and to
+// avoid ERR_ERL_UNEXPECTED_X_FORWARDED_FOR. A specific hop count (1) is used
+// rather than `true`, which rate-limit flags as overly permissive (spoofable).
+app.set("trust proxy", 1);
+
 app.use(express.json());
 app.use(cookieParser());
  
